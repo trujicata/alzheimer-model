@@ -2,9 +2,9 @@
 Machine learning model for reccognizing amyloid deposits on the brain cortex
 
 
-## REQUIREMENTS
+## Requirements
 
-## Pyenv
+### Pyenv
 
 - Install:
 
@@ -31,7 +31,7 @@ pyenv: version `3.X.X' is not installed (set by /home/.../repo-name/.python-vers
 ```
 Then, you can simply install the required version by running `pyenv install` or `pyenv install 3.X.X`
 
-## Virtual Environment
+### Virtual Environment
 
 - Create one: Once you have the python version ser un correctly, you can create the virtual environment. 
 
@@ -44,7 +44,7 @@ $ python -m venv .venv
 $ source .venv/bin/activate
 ```
 
-## Poetry 
+### Poetry 
 - Install poetry: https://python-poetry.org/docs/#installation
 - Install dependencies:
 ```bash
