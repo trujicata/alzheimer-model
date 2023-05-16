@@ -9,12 +9,14 @@ from PIL import Image
 img_1 = nib.load(
     "/home/catalina/workspace/alzheimer-model/data/PET/ADNI/137_S_1414/ADNI-2-AV-45_AV45/2012-09-04_14_34_53.0/I330092/ADNI_137_S_1414_PT_ADNI-2-AV-45_AV45_br_raw_20120904165151377_159_S165970_I330092.nii"
 )
+#%%
+img_np = np.array(img_1.dataobj)
 # %%
 import matplotlib.pyplot as plt
 
 # Display the image using Matplotlib
-for i in range(img_1.shape[2]):
-    plt.imshow(img_1[:, :, i, 0], cmap="gray")
+for i in range(img_np.shape[2]):
+    plt.imshow(img_np[:, :, i, 0], cmap="gray")
     plt.colorbar()
     plt.title("PET Image")
     plt.show()
