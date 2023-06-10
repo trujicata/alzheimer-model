@@ -14,8 +14,6 @@ class ADNIDataset(Dataset):
         transform=None,
         num_classes=3,
     ):
-        self.X = np.copy(X)
-        self.y = np.copy(y)
         self.X = X
         self.y = y
         self.transform = transform
@@ -26,6 +24,7 @@ class ADNIDataset(Dataset):
 
     def __getitem__(self, idx):
         image = self.X[idx]
+        image = torch.from_numpy(np.squeeze(image, axis=3))
         label = self.y[idx] >= 0.5
         label = torch.LongTensor([label])
 
@@ -58,12 +57,11 @@ class ADNIDataModule(pl.LightningDataModule):
         X_val, y_val = val_h5_["X"], val_h5_["y"]
 
         mean, std = mean_and_standard_deviation(X_train)
-
         train_transforms = T.Compose(
-            [T.ToTensor(), T.Normalize(mean=mean, std=std)]
+            [T.Normalize(mean=mean, std=std)]
         )  # TODO: Add augmentation
         val_transforms = T.Compose(
-            [T.ToTensor(), T.Normalize(mean=mean, std=std)]
+            [T.Normalize(mean=mean, std=std)]
         )  # TODO: More transforms?
 
         self.train_dataset = ADNIDataset(X_train, y_train, transform=train_transforms)
@@ -90,10 +88,11 @@ class ADNIDataModule(pl.LightningDataModule):
 
 def mean_and_standard_deviation(array):
     """Compute the mean and standard deviation of an array of images"""
+    array = np.squeeze(array, axis=4)
     N, num_channels, _, _ = array.shape
-    reshaped_array = np.reshape(array, (N, num_channels, -1))
+    reshaped_array = np.reshape(array, (num_channels, -1))
 
-    mean_values = np.mean(reshaped_array, axis=2)
-    std_values = np.std(reshaped_array, axis=2)
+    mean_values = np.mean(reshaped_array, axis=1)
+    std_values = np.std(reshaped_array, axis=1)
 
     return mean_values, std_values

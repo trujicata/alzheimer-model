@@ -7,7 +7,7 @@ from PIL import Image
 #%%
 # Single image to numpy
 img_1 = nib.load(
-    "/home/catalina/workspace/alzheimer-model/data/PET/ADNI/137_S_1414/ADNI-2-AV-45_AV45/2012-09-04_14_34_53.0/I330092/ADNI_137_S_1414_PT_ADNI-2-AV-45_AV45_br_raw_20120904165151377_159_S165970_I330092.nii"
+    "data/PET/ADNI/137_S_1414/ADNI-2-AV-45_AV45/2012-09-04_14_34_53.0/I330092/ADNI_137_S_1414_PT_ADNI-2-AV-45_AV45_br_raw_20120904165151377_159_S165970_I330092.nii"
 )
 #%%
 img_np = np.array(img_1.dataobj)
@@ -23,6 +23,8 @@ def show_nii(img_np):
         plt.show()
 
 
+#%%
+show_nii(img_np)
 # %%
 # 1 . Sacar las capas de los extremos porque pueden hacer ruido
 def peel_nii(img, num_layers):
