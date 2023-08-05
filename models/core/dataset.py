@@ -1,4 +1,4 @@
-import h5py
+import h5pyd as h5py
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -50,18 +50,19 @@ class ADNIDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
 
     def setup(self, stage: str):
+        
         train_h5_ = h5py.File(self.train_path, "r")
         val_h5_ = h5py.File(self.val_path, "r")
 
-        X_train, y_train = train_h5_["X"], train_h5_["y"]
-        X_val, y_val = val_h5_["X"], val_h5_["y"]
+        X_train, y_train = train_h5_["X_nii"], train_h5_["y"]
+        X_val, y_val = val_h5_["X_nii"], val_h5_["y"]
 
-        mean, std = mean_and_standard_deviation(X_train)
+        # mean, std = mean_and_standard_deviation(X_train)
         train_transforms = T.Compose(
-            [T.Normalize(mean=mean, std=std)]
+            [T.ToTensor()]
         )  # TODO: Add augmentation
         val_transforms = T.Compose(
-            [T.Normalize(mean=mean, std=std)]
+            [T.ToTensor()]
         )  # TODO: More transforms?
 
         self.train_dataset = ADNIDataset(X_train, y_train, transform=train_transforms)
