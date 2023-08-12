@@ -1,8 +1,10 @@
-import h5pyd as h5py
+import h5py
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms as T
+import boto3
+import os
 from torch.utils.data import Dataset, DataLoader
 
 
@@ -24,9 +26,9 @@ class ADNIDataset(Dataset):
 
     def __getitem__(self, idx):
         image = self.X[idx]
-        image = torch.from_numpy(np.squeeze(image, axis=3))
-        label = self.y[idx] >= 0.5
-        label = torch.LongTensor([label])
+        label_id = int(self.y[idx])
+        label = torch.zeros(self.num_classes)
+        label[label_id] = 1
 
         if self.transform:
             image = self.transform(image)
@@ -38,32 +40,33 @@ class ADNIDataset(Dataset):
 class ADNIDataModule(pl.LightningDataModule):
     def __init__(
         self,
-        train_path: str,
-        val_path: str,
+        data_path: str,
         batch_size: int = 32,
         num_workers: int = 4,
     ):
         super().__init__()
-        self.train_path = train_path
-        self.val_path = val_path
+        self.data_path = data_path
         self.batch_size = batch_size
         self.num_workers = num_workers
 
     def setup(self, stage: str):
-        
-        train_h5_ = h5py.File(self.train_path, "r")
-        val_h5_ = h5py.File(self.val_path, "r")
+        files = ["train.hdf5", "test.hdf5", "holdout.hdf5"]
+        s3 = boto3.client("s3")
+        for file_name in files:
+            path = os.path.join(self.data_path, file_name)
+            if not os.path.exists(path):
+                with open(path, "wb") as f:
+                    s3.download_fileobj("normal-h5s", file_name, f)
+        train_h5_ = h5py.File(os.path.join(self.data_path, "train.hdf5"), "r")
+        val_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
+        holdout_h5_ = h5py.File(os.path.join(self.data_path, "holdout.hdf5"), "r")
 
         X_train, y_train = train_h5_["X_nii"], train_h5_["y"]
         X_val, y_val = val_h5_["X_nii"], val_h5_["y"]
 
         # mean, std = mean_and_standard_deviation(X_train)
-        train_transforms = T.Compose(
-            [T.ToTensor()]
-        )  # TODO: Add augmentation
-        val_transforms = T.Compose(
-            [T.ToTensor()]
-        )  # TODO: More transforms?
+        train_transforms = T.Compose([T.ToTensor()])  # TODO: Add augmentation
+        val_transforms = T.Compose([T.ToTensor()])  # TODO: More transforms?
 
         self.train_dataset = ADNIDataset(X_train, y_train, transform=train_transforms)
         self.val_dataset = ADNIDataset(X_val, y_val, transform=val_transforms)

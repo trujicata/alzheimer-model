@@ -8,8 +8,10 @@ from pytorch_lightning.callbacks import (
     StochasticWeightAveraging,
 )
 from pytorch_lightning.loggers import TensorBoardLogger
+import sys
 
-from classifier3D.model import Classifier3D
+sys.path.append("./")
+from models.classifier3D.model import Classifier3D
 
 from dataset import ADNIDataModule
 
@@ -43,10 +45,10 @@ def get_args():
         "--max_epochs", default=5000, type=int, help="Max epochs to train"
     )
     parser.add_argument(
-        "--train_dataset_path", default="data..", type=str, help="Path to train dataset"
-    )
-    parser.add_argument(
-        "--val_dataset_path", default="data..", type=str, help="Path to val dataset"
+        "--data_path",
+        default="data",
+        type=str,
+        help="Path to where we will store the h5 files",
     )
 
     return parser.parse_args()
@@ -62,8 +64,7 @@ def train(args):
 
     print("Loading data module")
     datamodule = ADNIDataModule(
-        train_path=args.train_dataset_path,
-        val_path=args.val_dataset_path,
+        data_path=args.data_path,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
     )
