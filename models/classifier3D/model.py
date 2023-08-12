@@ -1,9 +1,8 @@
-from typing import List
+from typing import List, Optional
 
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
-import math
 
 
 class Flatten(nn.Module):
@@ -28,16 +27,9 @@ class ResBlock(nn.Module):
         self.act1 = nn.ELU()
 
         self.conv2 = nn.Conv3d(
-            layer_out, layer_out, kernel_size=3, stride=1, padding=1, bias=False
+            layer_out, layer_in, kernel_size=3, stride=1, padding=1, bias=False
         )
-        self.bn2 = nn.BatchNorm3d(layer_out)
-
-        # shortcut
-        self.shortcut = nn.Sequential(
-            nn.Conv3d(
-                layer_in, layer_out, kernel_size=1, stride=1, padding=0, bias=False
-            )
-        )
+        self.bn2 = nn.BatchNorm3d(layer_in)
 
         self.act2 = nn.ELU()
 
@@ -48,7 +40,7 @@ class ResBlock(nn.Module):
 
         out = self.conv2(out)
         out = self.bn2(out)
-        out += self.shortcut(x)
+        out += x
         out = self.act2(out)
         return out
 
@@ -56,9 +48,11 @@ class ResBlock(nn.Module):
 class Classifier3D(pl.LightningModule):
     def __init__(
         self,
-        lr: float = 0.001,
         num_classes: int = 3,
-        input_size: List[int] = None,
+        input_size: List[int] = [181, 181, 217],
+        depth: Optional[int] = 5,
+        lr: Optional[float] = 0.001,
+        name: Optional[str] = None,
     ):
         super().__init__()
         self.lr = lr
@@ -66,34 +60,24 @@ class Classifier3D(pl.LightningModule):
 
         self.criterion = nn.CrossEntropyLoss()
 
-        self.feature_extractor = nn.Sequential([self._make_block(i) for i in range(5)])
-
-        d, h, w = self._maxpool_output_size(input_size[1::], nb_layers=5)
+        h = int((input_size[0] - 3) / (2 ** (depth + 1))) + 2
+        w = int((input_size[1] - 3) / (2 ** (depth + 1))) + 2
+        d = int((input_size[2] - 3) / (2 ** (depth + 1))) + 2
+        self.feature_extractor = nn.Sequential(
+            *[self._make_block(i, 1) for i in range(depth)]
+        )
 
         self.classifier = nn.Sequential(
             Flatten(),
-            nn.Linear(128 * d * h * w, 256),
+            nn.Linear(h*w*d, 256),
             nn.ELU(),
             nn.Dropout(p=0.8),
-            nn.Linear(256, 2),
+            nn.Linear(256, num_classes),
         )
 
-    def _make_block(self, block_number, input_size=None):
+    def _make_block(self, block_number, num_input_channels):
         return nn.Sequential(
-            ResBlock(block_number, input_size), nn.MaxPool3d(3, stride=2)
-        )
-
-    def _maxpool_output_size(
-        self, input_size, kernel_size=(3, 3, 3), stride=(2, 2, 2), nb_layers=1
-    ):
-        d = math.floor((input_size[0] - kernel_size[0]) / stride[0] + 1)
-        h = math.floor((input_size[1] - kernel_size[1]) / stride[1] + 1)
-        w = math.floor((input_size[2] - kernel_size[2]) / stride[2] + 1)
-
-        if nb_layers == 1:
-            return d, h, w
-        return self._maxpool_output_size(
-            (d, h, w), kernel_size=kernel_size, stride=stride, nb_layers=nb_layers - 1
+            ResBlock(block_number, num_input_channels), nn.MaxPool3d(3, stride=2)
         )
 
     def forward(self, x):
