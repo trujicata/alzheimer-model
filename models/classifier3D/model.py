@@ -3,6 +3,10 @@ from typing import List, Optional
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
+from torchmetrics import ConfusionMatrix, Precision, Recall, F1Score
+import numpy as np
+import pandas as pd
+import seaborn as sn
 
 
 class Flatten(nn.Module):
@@ -48,7 +52,7 @@ class ResBlock(nn.Module):
 class Classifier3D(pl.LightningModule):
     def __init__(
         self,
-        num_classes: int = 3,
+        num_classes: Optional[int] = 3,
         input_size: List[int] = [181, 181, 217],
         depth: Optional[int] = 5,
         lr: Optional[float] = 0.001,
@@ -57,6 +61,7 @@ class Classifier3D(pl.LightningModule):
         super().__init__()
         self.lr = lr
         self.num_classes = num_classes
+        self.classes = ["AD", "MCI", "CN"]
 
         self.criterion = nn.CrossEntropyLoss()
 
@@ -69,11 +74,16 @@ class Classifier3D(pl.LightningModule):
 
         self.classifier = nn.Sequential(
             Flatten(),
-            nn.Linear(h*w*d, 256),
+            nn.Linear(h * w * d, 256),
             nn.ELU(),
             nn.Dropout(p=0.8),
             nn.Linear(256, num_classes),
         )
+
+        self.precision = Precision(task="multiclass", num_classes=self.num_classes)
+        self.recall = Recall(task="multiclass", num_classes=self.num_classes)
+        self.f1 = F1Score(task="multiclass", num_classes=self.num_classes)
+        self.conf_matrix = ConfusionMatrixPloter(classes=self.classes)
 
     def _make_block(self, block_number, num_input_channels):
         return nn.Sequential(
@@ -95,3 +105,69 @@ class Classifier3D(pl.LightningModule):
         loss = self.criterion(logits, y)
         self.log("train_loss", loss)
         return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch["image"], batch["label"]
+        logits = self(x)
+        loss = self.criterion(logits, y)
+
+        class_predictions = logits.argmax(dim=1)
+        preds = torch.zeros_like(logits)
+        preds[torch.arange(logits.shape[0]), class_predictions] = 1
+
+        self.precision(preds, y)
+        self.recall(preds, y)
+        self.f1(preds, y)
+
+        self.log_dict(
+            {
+                "val_loss": loss,
+                "val_f1": self.f1,
+                "val_precision": self.precision,
+                "val_recall": self.recall,
+            }
+        )
+
+        self.conf_matrix.update(preds=preds, labels=y)
+
+        return loss
+    
+    def on_validation_epoch_end(self) -> None:
+        self.log_conf_matrix()
+
+    def log_conf_matrix(self):
+        self.logger.experiment.add_figure(
+            "Confusion_Matrix",
+            self.conf_matrix.plot(),
+            self.current_epoch,
+        )
+
+        self.conf_matrix.reset()
+
+
+class ConfusionMatrixPloter:
+    def __init__(self, classes):
+        self.n_classes = len(classes)
+        self.classes = classes
+        self.matrix = np.zeros((self.n_classes, self.n_classes))
+
+    def update(self, preds, labels):
+        conf_matrix = ConfusionMatrix(
+            "multiclass", normalize=None, num_classes=self.n_classes
+        )
+        conf_matrix = conf_matrix(preds.cpu(), labels.detach().cpu()).numpy()
+
+        self.matrix += conf_matrix
+
+    def plot(self):
+
+        df_cm = pd.DataFrame(
+            self.matrix,
+            index=[i for i in self.classes],
+            columns=[i for i in self.classes],
+        )
+
+        return sn.heatmap(df_cm, annot=True).get_figure()
+
+    def reset(self):
+        self.matrix *= 0

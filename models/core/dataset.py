@@ -33,7 +33,7 @@ class ADNIDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        sample = {"image": image, "label": label}
+        sample = {"image": image.unsqueeze(0), "label": label}
         return sample
 
 
