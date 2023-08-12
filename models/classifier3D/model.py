@@ -1,12 +1,14 @@
+import random
 from typing import List, Optional
 
-import torch
-import torch.nn as nn
-import pytorch_lightning as pl
-from torchmetrics import ConfusionMatrix, Precision, Recall, F1Score
 import numpy as np
 import pandas as pd
+import pytorch_lightning as pl
 import seaborn as sn
+import torch
+import torch.nn as nn
+from matplotlib import pyplot as plt
+from torchmetrics import ConfusionMatrix, F1Score, Precision, Recall
 
 
 class Flatten(nn.Module):
@@ -63,7 +65,7 @@ class Classifier3D(pl.LightningModule):
         self.num_classes = num_classes
         self.classes = ["AD", "MCI", "CN"]
 
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.BCEWithLogitsLoss()
 
         h = int((input_size[0] - 3) / (2 ** (depth + 1))) + 2
         w = int((input_size[1] - 3) / (2 ** (depth + 1))) + 2
@@ -127,11 +129,12 @@ class Classifier3D(pl.LightningModule):
                 "val_recall": self.recall,
             }
         )
+        self.log_images(x, y, preds)
 
         self.conf_matrix.update(preds=preds, labels=y)
 
         return loss
-    
+
     def on_validation_epoch_end(self) -> None:
         self.log_conf_matrix()
 
@@ -143,6 +146,27 @@ class Classifier3D(pl.LightningModule):
         )
 
         self.conf_matrix.reset()
+
+    def log_images(self, images, labels, preds):
+        random_index = np.random.randint(0, len(images))
+        image = images[random_index]
+        label = self.classes[labels[random_index].argmax().item()]
+        pred = self.classes[preds[random_index].argmax().item()]
+
+        slice_vertical = image[0, :, :, 109].detach().cpu().numpy()
+        slice_horizontal = image[0, 90, :, :].detach().cpu().numpy()
+
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        ax1.imshow(slice_vertical, cmap="gray")
+        ax1.set_title(f"Label: {label}, Pred: {pred}")
+        ax2.imshow(slice_horizontal, cmap="gray")
+        ax2.set_title(f"Label: {label}, Pred: {pred}")
+
+        self.logger.experiment.add_figure(
+            "Random_Slices",
+            fig,
+            self.current_epoch,
+        )
 
 
 class ConfusionMatrixPloter:
@@ -160,7 +184,6 @@ class ConfusionMatrixPloter:
         self.matrix += conf_matrix
 
     def plot(self):
-
         df_cm = pd.DataFrame(
             self.matrix,
             index=[i for i in self.classes],
