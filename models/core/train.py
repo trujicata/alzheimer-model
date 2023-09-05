@@ -1,5 +1,7 @@
-from datetime import datetime
 import argparse
+import sys
+from datetime import datetime
+
 import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
@@ -8,12 +10,11 @@ from pytorch_lightning.callbacks import (
     StochasticWeightAveraging,
 )
 from pytorch_lightning.loggers import TensorBoardLogger
-import sys
 
 sys.path.append("./")
-from models.classifier3D.model import Classifier3D
-
 from dataset import ADNIDataModule
+
+from models.classifier3D.model import Classifier3D
 
 
 def get_args():
