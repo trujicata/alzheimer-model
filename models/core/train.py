@@ -1,5 +1,7 @@
-from datetime import datetime
 import argparse
+import sys
+from datetime import datetime
+
 import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
@@ -8,12 +10,11 @@ from pytorch_lightning.callbacks import (
     StochasticWeightAveraging,
 )
 from pytorch_lightning.loggers import TensorBoardLogger
-import sys
 
 sys.path.append("./")
-from models.classifier3D.model import Classifier3D
-
 from dataset import ADNIDataModule
+
+from models.classifier3D.model import Classifier3D
 
 
 def get_args():
@@ -32,13 +33,13 @@ def get_args():
     )
     parser.add_argument(
         "--lr",
-        default=1e-5,
+        default=1e-4,
         type=float,
         metavar="LR",
         help="initial learning rate",
     )
     parser.add_argument(
-        "--batch_size", default=32, type=int, metavar="N", help="mini-batch size"
+        "--batch_size", default=64, type=int, metavar="N", help="mini-batch size"
     )
     parser.add_argument("--num_workers", default=4, type=int, help="Number of workers")
     parser.add_argument(
@@ -60,10 +61,10 @@ def train(args):
     experiment_name = f"{model_name}_{hour_str}"
 
     print("Loading models")
-    model = Classifier3D(lr=args.lr)
+    model = Classifier3D(lr = args.lr, name=model_name)
 
     print("Loading data module")
-    datamodule = ADNIDataModule(
+    datamodule = ADNIDataModule(    
         data_path=args.data_path,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
@@ -85,7 +86,7 @@ def train(args):
                 self.lr_find(trainer, pl_module)
 
     checkpoint_callback = ModelCheckpoint(
-        dirpath=f"lightning_logs/watermark_detector/checkpoints/{experiment_name}",
+        dirpath=f"lightning_logs/checkpoints/{experiment_name}",
         filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_f1:.2f}}",
         monitor="val_f1",
         mode="max",
@@ -96,7 +97,7 @@ def train(args):
         milestones=[0, 5, 10, 20],
         min_lr=1e-8,
         max_lr=1e-1,
-        num_training_steps=200,
+        num_training_steps=20,
         early_stop_threshold=8.0,
     )
     swa_callback = StochasticWeightAveraging(swa_lrs=1e-2)
@@ -112,8 +113,9 @@ def train(args):
         max_epochs=args.max_epochs,
         precision="32",
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
-        callbacks=[checkpoint_callback, ftlr_callback, swa_callback],
+        callbacks=[checkpoint_callback],
         logger=tensorboard_logger,
+        log_every_n_steps=10,
     )
 
     # Train the model
@@ -121,9 +123,6 @@ def train(args):
         model,
         datamodule=datamodule,
     )
-
-    # Test the model
-    trainer.test(model, datamodule=datamodule)
 
 
 if __name__ == "__main__":
