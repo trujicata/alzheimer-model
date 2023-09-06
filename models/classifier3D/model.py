@@ -4,7 +4,6 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
-import seaborn as sn
 import torch
 import torch.nn as nn
 from matplotlib import pyplot as plt
