@@ -1,4 +1,3 @@
-import numpy as np
 import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -15,22 +14,21 @@ class AutoencoderDataset(Dataset):
         return self.data[idx]
 
     def load_data(self, data_path):
-        data_npy = np.load(data_path)
-        data_tensor = torch.from_numpy(data_npy)
+        data_tensor = torch.load(data_path)
         return data_tensor
 
 
 class AutoencoderDataModule(pl.LightningDataModule):
-    def __init__(self, train_data_path, val_data_path, batch_size, num_workers):
+    def __init__(self, train_path, val_path, batch_size, num_workers):
         super().__init__()
-        self.train_data = train_data_path
-        self.val_data = val_data_path
+        self.train_path = train_path
+        self.val_path = val_path
         self.batch_size = batch_size
         self.num_workers = num_workers
 
     def setup(self, stage=None):
-        self.train_dataset = AutoencoderDataset(self.data_path)
-        self.val_dataset = AutoencoderDataset(self.val_data_path)
+        self.train_dataset = AutoencoderDataset(self.train_path)
+        self.val_dataset = AutoencoderDataset(self.val_path)
 
     def train_dataloader(self):
         return DataLoader(

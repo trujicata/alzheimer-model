@@ -1,11 +1,11 @@
 import argparse
-
+import sys
 import torch
-from datatime import datetime
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
+sys.path.append("./")
 from models.unet_autoencoder.dataset import AutoencoderDataModule
 from models.unet_autoencoder.model import Autoencoder
 
@@ -40,26 +40,26 @@ def get_args():
     )
     parser.add_argument(
         "--train_path",
-        default="data/autoencoder/train.npy",
+        default="data/autoencoder/embeddings/train.pt",
         type=str,
-        help="Path to is the npy file for training",
+        help="Path to is the embedding file for training",
     )
     parser.add_argument(
         "--val_path",
-        default="data/autoencoder/val.npy",
+        default="data/autoencoder/embeddings/val.pt",
         type=str,
-        help="Path to is the npy file for validation",
+        help="Path to is the embedding file for validation",
     )
 
     return parser.parse_args()
 
 
 def train(args):
-    hour_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    hour_str = "21:55"
 
     model = Autoencoder(lr=args.lr)
     datamodule = AutoencoderDataModule(
-        args.data_path, args.val_data_path, args.batch_size, args.num_workers
+        args.train_path, args.val_path, args.batch_size, args.num_workers
     )
 
     experiment_name = f"{args.model_name}_{hour_str}"
