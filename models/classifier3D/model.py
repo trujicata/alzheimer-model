@@ -4,11 +4,10 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
-import seaborn as sn
 import torch
 import torch.nn as nn
 from matplotlib import pyplot as plt
-from torchmetrics import ConfusionMatrix, F1Score, Precision, Recall
+from torchmetrics import F1Score, Precision, Recall
 
 
 class Flatten(nn.Module):
@@ -56,7 +55,7 @@ class Classifier3D(pl.LightningModule):
         self,
         num_classes: Optional[int] = 3,
         input_size: List[int] = [181, 181, 217],
-        depth: Optional[int] = 5,
+        depth: Optional[int] = 3,
         lr: Optional[float] = 0.001,
         name: Optional[str] = None,
     ):
@@ -67,16 +66,13 @@ class Classifier3D(pl.LightningModule):
 
         self.criterion = nn.BCEWithLogitsLoss()
 
-        h = int((input_size[0] - 3) / (2 ** (depth + 1))) + 2
-        w = int((input_size[1] - 3) / (2 ** (depth + 1))) + 2
-        d = int((input_size[2] - 3) / (2 ** (depth + 1))) + 2
         self.feature_extractor = nn.Sequential(
             *[self._make_block(i, 1) for i in range(depth)]
         )
 
         self.classifier = nn.Sequential(
             Flatten(),
-            nn.Linear(h * w * d, 256),
+            nn.Linear(1200, 256),
             nn.ELU(),
             nn.Dropout(p=0.8),
             nn.Linear(256, num_classes),
@@ -120,6 +116,7 @@ class Classifier3D(pl.LightningModule):
         self.precision(preds, y)
         self.recall(preds, y)
         self.f1(preds, y)
+        self.conf_matrix.update(preds, y)
 
         self.log_dict(
             {
@@ -131,7 +128,6 @@ class Classifier3D(pl.LightningModule):
         )
         self.log_images(x, y, preds)
 
-        self.conf_matrix.update(preds=preds, labels=y)
 
         return loss
 
@@ -139,12 +135,10 @@ class Classifier3D(pl.LightningModule):
         self.log_conf_matrix()
 
     def log_conf_matrix(self):
+        self.conf_matrix.plot()
         self.logger.experiment.add_figure(
-            "Confusion_Matrix",
-            self.conf_matrix.plot(),
-            self.current_epoch,
+            "Confusion_Matrix", plt.gcf(), global_step=self.current_epoch
         )
-
         self.conf_matrix.reset()
 
     def log_images(self, images, labels, preds):
@@ -153,8 +147,8 @@ class Classifier3D(pl.LightningModule):
         label = self.classes[labels[random_index].argmax().item()]
         pred = self.classes[preds[random_index].argmax().item()]
 
-        slice_vertical = image[0, :, :, 109].detach().cpu().numpy()
-        slice_horizontal = image[0, 90, :, :].detach().cpu().numpy()
+        slice_vertical = image[0, :, :, 55].detach().cpu().numpy()
+        slice_horizontal = image[0, 45, :, :].detach().cpu().numpy()
 
         fig, (ax1, ax2) = plt.subplots(1, 2)
         ax1.imshow(slice_vertical, cmap="gray")
@@ -169,28 +163,39 @@ class Classifier3D(pl.LightningModule):
         )
 
 
+
 class ConfusionMatrixPloter:
     def __init__(self, classes):
-        self.n_classes = len(classes)
+        self.num_classes = len(classes)
         self.classes = classes
-        self.matrix = np.zeros((self.n_classes, self.n_classes))
+        self.matrix = np.zeros((self.num_classes, self.num_classes))
 
-    def update(self, preds, labels):
-        conf_matrix = ConfusionMatrix(
-            "multiclass", normalize=None, num_classes=self.n_classes
-        )
-        conf_matrix = conf_matrix(preds.cpu(), labels.detach().cpu()).numpy()
-
+    def update(self, preds, targets):
+        conf_matrix = self.confusion_matrix(
+            preds.detach().cpu(), targets.detach().cpu()
+        ).numpy()
         self.matrix += conf_matrix
 
     def plot(self):
-        df_cm = pd.DataFrame(
-            self.matrix,
-            index=[i for i in self.classes],
-            columns=[i for i in self.classes],
-        )
+        plt.figure(figsize=(10, 10))
+        plt.imshow(self.matrix, interpolation="nearest", cmap=plt.cm.Blues)
+        plt.title("Confusion Matrix")
 
-        return sn.heatmap(df_cm, annot=True).get_figure()
+        tick_marks = np.arange(self.num_classes)
+        plt.xticks(tick_marks, self.classes, rotation=45)
+        plt.yticks(tick_marks, self.classes)
+
+        plt.ylabel("True label")
+        plt.xlabel("Predicted label")
+        plt.show()
 
     def reset(self):
         self.matrix *= 0
+
+    def confusion_matrix(self, preds, target):
+        matrix = torch.zeros((self.num_classes, self.num_classes), dtype=torch.int)
+        for p, t in zip(preds, target):
+            pred_class = torch.argmax(p)
+            target_class = torch.argmax(t)
+            matrix[target_class][pred_class] += 1
+        return matrix
