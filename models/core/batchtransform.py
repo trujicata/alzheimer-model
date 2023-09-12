@@ -84,9 +84,6 @@ def batch_transform(
     torch.save(val_embeddings, "data/autoencoder/embeddings/val.pt")
 
     writer = SummaryWriter(log_dir=".runs/embeddings")
-    import ipdb
-    ipdb.set_trace()
-
     writer.add_embedding(train_embeddings, metadata=train_labs)
     writer.add_embedding(val_embeddings, metadata=val_labs)
 
