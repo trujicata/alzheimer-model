@@ -32,21 +32,21 @@ def get_args():
         help="initial learning rate",
     )
     parser.add_argument(
-        "--batch_size", default=1, type=int, metavar="N", help="mini-batch size"
+        "--batch_size", default=8, type=int, metavar="N", help="mini-batch size"
     )
-    parser.add_argument("--num_workers", default=1, type=int, help="Number of workers")
+    parser.add_argument("--num_workers", default=4, type=int, help="Number of workers")
     parser.add_argument(
-        "--max_epochs", default=5000, type=int, help="Max epochs to train"
+        "--max_epochs", default=2000, type=int, help="Max epochs to train"
     )
     parser.add_argument(
         "--train_path",
-        default="data/autoencoder/embeddings/train.pt",
+        default="data/autoencoder/embeddings/train.npy",
         type=str,
         help="Path to is the embedding file for training",
     )
     parser.add_argument(
         "--val_path",
-        default="data/autoencoder/embeddings/val.pt",
+        default="data/autoencoder/embeddings/val.npy",
         type=str,
         help="Path to is the embedding file for validation",
     )
@@ -66,16 +66,16 @@ def train(args):
 
     checkpoint_callback = ModelCheckpoint(
         dirpath=(
-            "lightning_logs/autoencoder"
+            "lightning_logs/autoencoder/"
             + f"{args.model_name}/{experiment_name}_checkpoints"
         ),
         filename=(
-            f"{experiment_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{f1:.2f}}"
+            f"{experiment_name}-{{epoch:02d}}-{{val_loss:.2f}}"
             f"-{{val_mae:.2f}}-{{val_mse:.2f}}-{{val_ssim:.2f}}"
         ),
         monitor="val_loss",
         mode="min",
-        save_top_k=5,
+        save_top_k=1,
     )
 
     tensorboard_logger = TensorBoardLogger(
@@ -83,7 +83,6 @@ def train(args):
     )
 
     print("Running trainer")
-    torch.set_float32_matmul_precision("medium")
 
     trainer = Trainer(
         max_epochs=args.max_epochs,

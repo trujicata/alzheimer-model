@@ -11,13 +11,23 @@ from torchmetrics import (
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
-        self.conv1 = nn.Conv3d(512, 1024, kernel_size=3, stride=2, padding=1)
-        self.conv2 = nn.Conv3d(1024, 2048, kernel_size=4, stride=2, padding=1)
-        self.conv3 = nn.Conv3d(2048, 2048, kernel_size=4, stride=2, padding=1)
+        self.conv1 = nn.Conv3d(
+            512, 1024, kernel_size=(3, 3, 3), stride=1, padding=(1, 1, 1)
+        )
+        self.maxpool1 = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
+        self.conv2 = nn.Conv3d(
+            1024, 2048, kernel_size=(4, 4, 4), stride=(2, 2, 2), padding=(1, 1, 1)
+        )
+        self.maxpool2 = nn.MaxPool3d(kernel_size=2, stride=2)
+        self.conv3 = nn.Conv3d(
+            2048, 2048, kernel_size=(4, 3, 3), stride=(2, 2, 2), padding=(1, 1, 1)
+        )
 
     def forward(self, x):
         x = self.conv1(x)
+        x = self.maxpool1(x)
         x = self.conv2(x)
+        x = self.maxpool2(x)
         x = self.conv3(x)
         return x
 
