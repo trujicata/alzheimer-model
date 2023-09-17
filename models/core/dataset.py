@@ -1,5 +1,4 @@
 import h5py
-import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms as T
@@ -71,6 +70,9 @@ class ADNIDataModule(pl.LightningDataModule):
         self.train_dataset = ADNIDataset(X_train, y_train, transform=train_transforms)
         self.val_dataset = ADNIDataset(X_val, y_val, transform=val_transforms)
 
+        self.check_balance(self.train_dataset)
+        self.check_balance(self.val_dataset)
+
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset,
@@ -89,14 +91,13 @@ class ADNIDataModule(pl.LightningDataModule):
             pin_memory=True,
         )
 
-
-def mean_and_standard_deviation(array):
-    """Compute the mean and standard deviation of an array of images"""
-    array = np.squeeze(array, axis=4)
-    N, num_channels, _, _ = array.shape
-    reshaped_array = np.reshape(array, (num_channels, -1))
-
-    mean_values = np.mean(reshaped_array, axis=1)
-    std_values = np.std(reshaped_array, axis=1)
-
-    return mean_values, std_values
+    def check_balance(self, dataset: Dataset) -> None:
+        labels = []
+        for i in range(len(dataset)):
+            sample = dataset[i]
+            labels.append(torch.argmax(sample["label"]))
+        labels = torch.stack(labels)
+        print("Label counts: ", torch.unique(labels, return_counts=True))
+        print(
+            "Label counts: ", torch.unique(labels, return_counts=True)[1] / len(labels)
+        )

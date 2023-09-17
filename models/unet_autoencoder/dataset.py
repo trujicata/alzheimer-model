@@ -1,19 +1,19 @@
 import pytorch_lightning as pl
+import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
-import numpy as np
 
 
 class AutoencoderDataset(Dataset):
     def __init__(self, data_path: str):
-        self.npy_data = np.load(data_path)
+        self.data = np.load(data_path)
 
     def __len__(self):
-        return len(self.npy_data)
+        return len(self.data)
 
     def __getitem__(self, idx):
-        sample = self.npy_data[idx]
-        sample = torch.from_numpy(sample)
+        sample = self.data[idx]
+        sample = torch.from_numpy(sample).float()
         return sample
 
 
