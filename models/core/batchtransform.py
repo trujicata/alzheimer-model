@@ -43,7 +43,6 @@ def batch_transform(
     train_data_loader = DataLoader(
         train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers
     )
-    train_labels = train_data.labels
 
     os.makedirs("data/autoencoder/embeddings", exist_ok=True)
 
@@ -58,19 +57,10 @@ def batch_transform(
     print(train_embeddings.shape)
     torch.save(train_embeddings, "data/autoencoder/embeddings/train.pt")
 
-    train_labs = []
-    for y in train_labels:
-        train_labs.append(y)
-
     val_data = H5Dataset(val_path)
     val_data_loader = DataLoader(
         val_data, batch_size=batch_size, shuffle=True, num_workers=num_workers
     )
-    val_labels = val_data.labels
-
-    val_labs = []
-    for y in val_labels:
-        val_labs.append(y)
 
     val_embeddings = []
     for x, _ in tqdm(val_data_loader):
@@ -83,15 +73,11 @@ def batch_transform(
     print(val_embeddings.shape)
     torch.save(val_embeddings, "data/autoencoder/embeddings/val.pt")
 
-    writer = SummaryWriter(log_dir=".runs/embeddings")
-    writer.add_embedding(train_embeddings, metadata=train_labs)
-    writer.add_embedding(val_embeddings, metadata=val_labs)
-
 
 if __name__ == "__main__":
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     batch_size = 1
-    num_workers = 4
+    num_workers = 8
     encoder = UNet3DEncoder()
     encoder.load_state_dict(torch.load("models/weights/Genesis_Chest_CT_encoder.pt"))
     encoder.eval()

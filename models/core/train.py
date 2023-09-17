@@ -4,11 +4,7 @@ from datetime import datetime
 
 import torch
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import (
-    LearningRateFinder,
-    ModelCheckpoint,
-    StochasticWeightAveraging,
-)
+from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 sys.path.append("./")
@@ -41,7 +37,7 @@ def get_args():
     parser.add_argument(
         "--batch_size", default=64, type=int, metavar="N", help="mini-batch size"
     )
-    parser.add_argument("--num_workers", default=4, type=int, help="Number of workers")
+    parser.add_argument("--num_workers", default=8, type=int, help="Number of workers")
     parser.add_argument(
         "--max_epochs", default=5000, type=int, help="Max epochs to train"
     )
@@ -61,10 +57,10 @@ def train(args):
     experiment_name = f"{model_name}_{hour_str}"
 
     print("Loading models")
-    model = Classifier3D(lr = args.lr, name=model_name)
+    model = Classifier3D(lr=args.lr, name=model_name)
 
     print("Loading data module")
-    datamodule = ADNIDataModule(    
+    datamodule = ADNIDataModule(
         data_path=args.data_path,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
@@ -73,34 +69,13 @@ def train(args):
     # Callbacks
     print("Defining callbacks")
 
-    class FineTuneLearningRateFinder(LearningRateFinder):
-        def __init__(self, milestones, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.milestones = milestones
-
-        def on_fit_start(self, *args, **kwargs):
-            return
-
-        def on_train_epoch_start(self, trainer, pl_module):
-            if trainer.current_epoch in self.milestones:
-                self.lr_find(trainer, pl_module)
-
     checkpoint_callback = ModelCheckpoint(
         dirpath=f"lightning_logs/checkpoints/{experiment_name}",
         filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_f1:.2f}}",
         monitor="val_f1",
         mode="max",
-        save_top_k=5,
+        save_top_k=3,
     )
-
-    ftlr_callback = FineTuneLearningRateFinder(
-        milestones=[0, 5, 10, 20],
-        min_lr=1e-8,
-        max_lr=1e-1,
-        num_training_steps=20,
-        early_stop_threshold=8.0,
-    )
-    swa_callback = StochasticWeightAveraging(swa_lrs=1e-2)
 
     # Instantiate the TensorBoard logger
     tensorboard_logger = TensorBoardLogger("lightning_logs/classifier", name=model_name)
