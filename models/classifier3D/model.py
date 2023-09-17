@@ -1,8 +1,6 @@
-import random
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
-import pandas as pd
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -54,7 +52,6 @@ class Classifier3D(pl.LightningModule):
     def __init__(
         self,
         num_classes: Optional[int] = 3,
-        input_size: List[int] = [181, 181, 217],
         depth: Optional[int] = 3,
         lr: Optional[float] = 0.001,
         name: Optional[str] = None,
@@ -128,7 +125,6 @@ class Classifier3D(pl.LightningModule):
         )
         self.log_images(x, y, preds)
 
-
         return loss
 
     def on_validation_epoch_end(self) -> None:
@@ -161,7 +157,6 @@ class Classifier3D(pl.LightningModule):
             fig,
             self.current_epoch,
         )
-
 
 
 class ConfusionMatrixPloter:
