@@ -48,6 +48,60 @@ class ResBlock(nn.Module):
         return out
 
 
+class ConvNet(nn.Module):
+    def __init__(self):
+        super(ConvNet, self).__init__()
+        
+        # Define the same layers as in your Keras model
+        self.conv1 = nn.Conv3d(1, 5, kernel_size=3, padding=1)  # Corrected input channels from 5 to 1
+        self.maxpool1 = nn.MaxPool3d(kernel_size=2, stride=2)
+        self.bn1 = nn.BatchNorm3d(5)
+        
+        self.conv2 = nn.Conv3d(5, 5, kernel_size=3, padding=1)
+        self.maxpool2 = nn.MaxPool3d(kernel_size=2, stride=2)
+        self.bn2 = nn.BatchNorm3d(5)
+        
+        self.conv3 = nn.Conv3d(5, 5, kernel_size=3, padding=1)
+        self.maxpool3 = nn.MaxPool3d(kernel_size=2, stride=2)
+        self.bn3 = nn.BatchNorm3d(5)
+        
+        self.flatten = nn.Flatten()
+        
+        self.dropout1 = nn.Dropout(0.5)
+        self.fc1 = nn.Linear(10800, 64)
+        
+        self.dropout2 = nn.Dropout(0.5)
+        self.fc2 = nn.Linear(64, 32)
+        
+        self.dropout3 = nn.Dropout(0.5)
+        self.fc3 = nn.Linear(32, 2)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = nn.ReLU()(x)
+        x = self.maxpool1(x)
+        x = self.bn1(x)
+        x = self.conv2(x)
+        x = nn.ReLU()(x)
+        x = self.maxpool2(x)
+        x = self.bn2(x)
+        x = self.conv3(x)
+        x = nn.ReLU()(x)
+        x = self.maxpool3(x)
+        x = self.bn3(x)
+        x = self.flatten(x)
+        x = self.dropout1(x)
+        x = self.fc1(x)
+        x = nn.ReLU()(x)
+        x = self.dropout2(x)
+        x = self.fc2(x)
+        x = nn.ReLU()(x)
+        x = self.dropout3(x)
+        x = self.fc3(x)
+        x = nn.Softmax(dim=1)(x)
+        return x
+
+
 class Classifier3D(pl.LightningModule):
     def __init__(
         self,
@@ -63,18 +117,7 @@ class Classifier3D(pl.LightningModule):
 
         self.criterion = nn.BCEWithLogitsLoss()
 
-        self.feature_extractor = nn.Sequential(
-            *[self._make_block(i, 1) for i in range(depth)]
-        )
-
-        self.classifier = nn.Sequential(
-            Flatten(),
-            nn.Linear(1200, 256),
-            nn.ELU(),
-            nn.Dropout(p=0.8),
-            nn.Linear(256, num_classes),
-        )
-
+        self.model = ConvNet()
         self.precision = Precision(task="multiclass", num_classes=self.num_classes)
         self.recall = Recall(task="multiclass", num_classes=self.num_classes)
         self.f1 = F1Score(task="multiclass", num_classes=self.num_classes)
@@ -86,9 +129,8 @@ class Classifier3D(pl.LightningModule):
         )
 
     def forward(self, x):
-        x = self.feature_extractor(x)
-        out = self.classifier(x)
-        return out
+        x = self.model(x)
+        return x
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0.0001)
