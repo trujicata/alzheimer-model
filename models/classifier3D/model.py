@@ -51,54 +51,43 @@ class ResBlock(nn.Module):
 class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        
-        # Define the same layers as in your Keras model
-        self.conv1 = nn.Conv3d(1, 5, kernel_size=3, padding=1)  # Corrected input channels from 5 to 1
-        self.maxpool1 = nn.MaxPool3d(kernel_size=2, stride=2)
-        self.bn1 = nn.BatchNorm3d(5)
-        
-        self.conv2 = nn.Conv3d(5, 5, kernel_size=3, padding=1)
-        self.maxpool2 = nn.MaxPool3d(kernel_size=2, stride=2)
-        self.bn2 = nn.BatchNorm3d(5)
-        
-        self.conv3 = nn.Conv3d(5, 5, kernel_size=3, padding=1)
-        self.maxpool3 = nn.MaxPool3d(kernel_size=2, stride=2)
-        self.bn3 = nn.BatchNorm3d(5)
-        
+
+        self.conv_block_1 = nn.Sequential(
+            nn.Conv3d(1, 5, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool3d(kernel_size=2, stride=2),
+            nn.BatchNorm3d(5),
+        )
+
+        self.conv_block_2 = nn.Sequential(
+            nn.Conv3d(5, 5, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool3d(kernel_size=2, stride=2),
+            nn.BatchNorm3d(5),
+        )
+
+        self.conv_block_3 = nn.Sequential(
+            nn.Conv3d(5, 5, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool3d(kernel_size=2, stride=2),
+            nn.BatchNorm3d(5),
+        )
         self.flatten = nn.Flatten()
-        
-        self.dropout1 = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(10800, 64)
-        
-        self.dropout2 = nn.Dropout(0.5)
-        self.fc2 = nn.Linear(64, 32)
-        
-        self.dropout3 = nn.Dropout(0.5)
-        self.fc3 = nn.Linear(32, 2)
+
+        self.classifier = nn.Sequential(
+            nn.Sequential(nn.Dropout(0.5), nn.ReLU(), nn.Linear(10800, 64)),
+            nn.Sequential(nn.Dropout(0.5), nn.ReLU(), nn.Linear(64, 32)),
+            nn.Sequential(
+                nn.Dropout(0.5), nn.ReLU(), nn.Linear(32, 3), nn.Softmax(dim=1)
+            ),
+        )
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = nn.ReLU()(x)
-        x = self.maxpool1(x)
-        x = self.bn1(x)
-        x = self.conv2(x)
-        x = nn.ReLU()(x)
-        x = self.maxpool2(x)
-        x = self.bn2(x)
-        x = self.conv3(x)
-        x = nn.ReLU()(x)
-        x = self.maxpool3(x)
-        x = self.bn3(x)
+        x = self.conv_block_1(x)
+        x = self.conv_block_2(x)
+        x = self.conv_block_3(x)
         x = self.flatten(x)
-        x = self.dropout1(x)
-        x = self.fc1(x)
-        x = nn.ReLU()(x)
-        x = self.dropout2(x)
-        x = self.fc2(x)
-        x = nn.ReLU()(x)
-        x = self.dropout3(x)
-        x = self.fc3(x)
-        x = nn.Softmax(dim=1)(x)
+        x = self.classifier(x)
         return x
 
 
@@ -106,11 +95,12 @@ class Classifier3D(pl.LightningModule):
     def __init__(
         self,
         num_classes: Optional[int] = 3,
-        depth: Optional[int] = 3,
+        freeze_block: Optional[int] = None,
         lr: Optional[float] = 0.001,
         name: Optional[str] = None,
     ):
         super().__init__()
+        self.name = name
         self.lr = lr
         self.num_classes = num_classes
         self.classes = ["AD", "MCI", "CN"]
@@ -118,15 +108,24 @@ class Classifier3D(pl.LightningModule):
         self.criterion = nn.BCEWithLogitsLoss()
 
         self.model = ConvNet()
+        pretrained_weights = torch.load("data/convnet.pt")
+        for k, v in pretrained_weights.items():
+            if "classifier.2" not in k:
+                self.model.state_dict()[k].copy_(v)
+            else:
+                print("Skipping", k)
+
+        if freeze_block is not None:
+            self.freeze_linear(freeze_block)
+
         self.precision = Precision(task="multiclass", num_classes=self.num_classes)
         self.recall = Recall(task="multiclass", num_classes=self.num_classes)
         self.f1 = F1Score(task="multiclass", num_classes=self.num_classes)
         self.conf_matrix = ConfusionMatrixPloter(classes=self.classes)
 
-    def _make_block(self, block_number, num_input_channels):
-        return nn.Sequential(
-            ResBlock(block_number, num_input_channels), nn.MaxPool3d(3, stride=2)
-        )
+    def freeze_linear(self, block_number):
+        for param in self.model.classifier[block_number].parameters():
+            param.requires_grad = False
 
     def forward(self, x):
         x = self.model(x)

@@ -15,14 +15,14 @@ from models.classifier3D.model import Classifier3D
 
 def get_args():
     parser = argparse.ArgumentParser(
-        " Alzheimer Disease Classifier for ADNI Dataset",
+        "Alzheimer Disease Classifier for ADNI Dataset",
         add_help=False,
     )
 
     # Model parameters
     parser.add_argument(
         "--model_name",
-        default="classifier3D",
+        default="convnet3d",
         type=str,
         metavar="MODEL",
         help="Name of model to train",
@@ -33,6 +33,12 @@ def get_args():
         type=float,
         metavar="LR",
         help="initial learning rate",
+    )
+    parser.add_argument(
+        "--freeze_block",
+        default=2,
+        type=int,
+        help="Block number to freeze",
     )
     parser.add_argument(
         "--batch_size", default=64, type=int, metavar="N", help="mini-batch size"
