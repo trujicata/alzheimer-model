@@ -66,3 +66,13 @@ attributions_numpy.shape
 # %%
 show_nii(attributions_numpy)
 # %%
+from pytorch_lightning import Trainer
+from models.core.dataset import ADNIDataModule
+
+datamodule = ADNIDataModule(
+    data_path="data",
+    batch_size=1,
+    num_workers=1,
+)
+datamodule.setup("fit")
+# %%

@@ -75,10 +75,10 @@ class ConvNet(nn.Module):
         self.flatten = nn.Flatten()
 
         self.classifier = nn.Sequential(
-            nn.Sequential(nn.Dropout(0.5), nn.ReLU(), nn.Linear(10800, 64)),
-            nn.Sequential(nn.Dropout(0.5), nn.ReLU(), nn.Linear(64, 32)),
+            nn.Sequential(nn.Dropout(0.01), nn.ReLU(), nn.Linear(10800, 64)),
+            nn.Sequential(nn.Dropout(0.01), nn.ReLU(), nn.Linear(64, 32)),
             nn.Sequential(
-                nn.Dropout(0.5), nn.ReLU(), nn.Linear(32, 3), nn.Softmax(dim=1)
+                nn.Dropout(0.01), nn.ReLU(), nn.Linear(32, 3), nn.Softmax(dim=1)
             ),
         )
 
@@ -97,6 +97,7 @@ class Classifier3D(pl.LightningModule):
         num_classes: Optional[int] = 3,
         freeze_block: Optional[int] = None,
         lr: Optional[float] = 0.001,
+        class_weights: Optional[list] = None,
         name: Optional[str] = None,
     ):
         super().__init__()
@@ -105,15 +106,24 @@ class Classifier3D(pl.LightningModule):
         self.num_classes = num_classes
         self.classes = ["AD", "MCI", "CN"]
 
-        self.criterion = nn.BCEWithLogitsLoss()
+        if class_weights is not None:
+            class_weights = torch.Tensor(class_weights)
+ 
+        self.criterion = nn.CrossEntropyLoss(weight=class_weights) 
 
         self.model = ConvNet()
-        pretrained_weights = torch.load("data/convnet.pt")
-        for k, v in pretrained_weights.items():
-            if "classifier.2" not in k:
-                self.model.state_dict()[k].copy_(v)
-            else:
-                print("Skipping", k)
+
+        for k,v in self.model.state_dict().items():
+            if v.dtype == torch.float32:
+                nn.init.normal_(v, 0, 1)
+
+        # pretrained_weights = torch.load("data/convnet.pt")
+        # for k, v in pretrained_weights.items():
+        #     if "classifier.2" not in k:
+        #         self.model.state_dict()[k].copy_(v)
+        #     else:
+        #         nn.init.normal(self.model.state_dict()[k], 0,1)
+        #         print("Skipping", k)
 
         if freeze_block is not None:
             self.freeze_linear(freeze_block)
@@ -121,7 +131,8 @@ class Classifier3D(pl.LightningModule):
         self.precision = Precision(task="multiclass", num_classes=self.num_classes)
         self.recall = Recall(task="multiclass", num_classes=self.num_classes)
         self.f1 = F1Score(task="multiclass", num_classes=self.num_classes)
-        self.conf_matrix = ConfusionMatrixPloter(classes=self.classes)
+        self.val_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
+        self.train_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
 
     def freeze_linear(self, block_number):
         for param in self.model.classifier[block_number].parameters():
@@ -132,13 +143,19 @@ class Classifier3D(pl.LightningModule):
         return x
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0.0001)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=1e-5)
         return optimizer
 
     def training_step(self, batch, batch_idx):
         x, y = batch["image"], batch["label"]
         logits = self(x)
         loss = self.criterion(logits, y)
+
+        class_predictions = logits.argmax(dim=1)
+        preds = torch.zeros_like(logits)
+        preds[torch.arange(logits.shape[0]), class_predictions] = 1
+        self.train_conf_matrix.update(preds, y)
+
         self.log("train_loss", loss)
         return loss
 
@@ -154,7 +171,7 @@ class Classifier3D(pl.LightningModule):
         self.precision(preds, y)
         self.recall(preds, y)
         self.f1(preds, y)
-        self.conf_matrix.update(preds, y)
+        self.val_conf_matrix.update(preds, y)
 
         self.log_dict(
             {
@@ -169,14 +186,26 @@ class Classifier3D(pl.LightningModule):
         return loss
 
     def on_validation_epoch_end(self) -> None:
-        self.log_conf_matrix()
+        self.log_conf_matrix(mode="val")
+    
+    def on_train_epoch_end(self) -> None:
+        self.log_conf_matrix(mode="train")
 
-    def log_conf_matrix(self):
-        self.conf_matrix.plot()
-        self.logger.experiment.add_figure(
-            "Confusion_Matrix", plt.gcf(), global_step=self.current_epoch
-        )
-        self.conf_matrix.reset()
+    def log_conf_matrix(self, mode="val"):
+        if mode == "val":
+            self.val_conf_matrix.plot()
+            name = "Validation_Confusion_Matrix"
+            self.logger.experiment.add_figure(
+                name, plt.gcf(), global_step=self.current_epoch
+            )
+            self.val_conf_matrix.reset()
+        else:
+            self.train_conf_matrix.plot()
+            name = "Train_Confusion_Matrix"
+            self.logger.experiment.add_figure(
+                name, plt.gcf(), global_step=self.current_epoch
+            )
+            self.train_conf_matrix.reset()
 
     def log_images(self, images, labels, preds):
         random_index = np.random.randint(0, len(images))
@@ -223,6 +252,18 @@ class ConfusionMatrixPloter:
 
         plt.ylabel("True label")
         plt.xlabel("Predicted label")
+        for i in range(self.num_classes):
+            for j in range(self.num_classes):
+                plt.text(
+                    j,
+                    i,
+                    str(int(self.matrix[i, j])),
+                    ha="center",
+                    va="center",
+                    color="black",
+                    fontsize=26
+                )
+
         plt.show()
 
     def reset(self):

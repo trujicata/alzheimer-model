@@ -1,10 +1,12 @@
+import os
+import time
+
+import boto3
 import h5py
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms as T
-import boto3
-import os
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 
 class ADNIDataset(Dataset):
@@ -54,6 +56,7 @@ class ADNIDataModule(pl.LightningDataModule):
         for file_name in files:
             path = os.path.join(self.data_path, file_name)
             if not os.path.exists(path):
+                print("Downloadin the data from s3")
                 with open(path, "wb") as f:
                     s3.download_fileobj("normal-h5s", file_name, f)
         train_h5_ = h5py.File(os.path.join(self.data_path, "train.hdf5"), "r")
@@ -69,9 +72,6 @@ class ADNIDataModule(pl.LightningDataModule):
 
         self.train_dataset = ADNIDataset(X_train, y_train, transform=train_transforms)
         self.val_dataset = ADNIDataset(X_val, y_val, transform=val_transforms)
-
-        self.check_balance(self.train_dataset)
-        self.check_balance(self.val_dataset)
 
     def train_dataloader(self):
         return DataLoader(
