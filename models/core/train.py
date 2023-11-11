@@ -58,6 +58,7 @@ def train(args):
         callbacks=[checkpoint_callback],
         logger=tensorboard_logger,
         log_every_n_steps=5,
+        gradient_clip_val=0.5,
     )
 
     # Train the model

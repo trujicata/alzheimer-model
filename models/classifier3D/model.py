@@ -113,10 +113,6 @@ class Classifier3D(pl.LightningModule):
 
         self.model = ConvNet()
 
-        for k,v in self.model.state_dict().items():
-            if v.dtype == torch.float32:
-                nn.init.normal_(v, 0, 1)
-
         # pretrained_weights = torch.load("data/convnet.pt")
         # for k, v in pretrained_weights.items():
         #     if "classifier.2" not in k:
@@ -143,7 +139,7 @@ class Classifier3D(pl.LightningModule):
         return x
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=1e-5)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0)
         return optimizer
 
     def training_step(self, batch, batch_idx):
@@ -183,8 +179,6 @@ class Classifier3D(pl.LightningModule):
         )
         self.log_images(x, y, preds)
 
-        return loss
-
     def on_validation_epoch_end(self) -> None:
         self.log_conf_matrix(mode="val")
     
@@ -193,17 +187,17 @@ class Classifier3D(pl.LightningModule):
 
     def log_conf_matrix(self, mode="val"):
         if mode == "val":
-            self.val_conf_matrix.plot()
+            fig = self.val_conf_matrix.plot()
             name = "Validation_Confusion_Matrix"
             self.logger.experiment.add_figure(
-                name, plt.gcf(), global_step=self.current_epoch
+                name, fig, global_step=self.current_epoch
             )
             self.val_conf_matrix.reset()
         else:
-            self.train_conf_matrix.plot()
+            fig = self.train_conf_matrix.plot()
             name = "Train_Confusion_Matrix"
             self.logger.experiment.add_figure(
-                name, plt.gcf(), global_step=self.current_epoch
+                name, fig, global_step=self.current_epoch
             )
             self.train_conf_matrix.reset()
 
@@ -264,7 +258,7 @@ class ConfusionMatrixPloter:
                     fontsize=26
                 )
 
-        plt.show()
+        return plt.gcf()
 
     def reset(self):
         self.matrix *= 0
