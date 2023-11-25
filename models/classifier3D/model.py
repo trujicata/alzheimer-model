@@ -4,6 +4,7 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+from lion_pytorch import Lion
 from matplotlib import pyplot as plt
 from torchmetrics import F1Score, Precision, Recall
 
@@ -49,7 +50,7 @@ class ResBlock(nn.Module):
 
 
 class ConvNet(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout: float = 0.01):
         super(ConvNet, self).__init__()
 
         self.conv_block_1 = nn.Sequential(
@@ -75,10 +76,10 @@ class ConvNet(nn.Module):
         self.flatten = nn.Flatten()
 
         self.classifier = nn.Sequential(
-            nn.Sequential(nn.Dropout(0.01), nn.ReLU(), nn.Linear(10800, 64)),
-            nn.Sequential(nn.Dropout(0.01), nn.ReLU(), nn.Linear(64, 32)),
+            nn.Sequential(nn.Dropout(dropout), nn.ReLU(), nn.Linear(10800, 64)),
+            nn.Sequential(nn.Dropout(dropout), nn.ReLU(), nn.Linear(64, 32)),
             nn.Sequential(
-                nn.Dropout(0.01), nn.ReLU(), nn.Linear(32, 3), nn.Softmax(dim=1)
+                nn.Dropout(dropout), nn.ReLU(), nn.Linear(32, 3), nn.Softmax(dim=1)
             ),
         )
 
@@ -94,32 +95,32 @@ class ConvNet(nn.Module):
 class Classifier3D(pl.LightningModule):
     def __init__(
         self,
-        num_classes: Optional[int] = 3,
+        dropout: float = 0.01,
         freeze_block: Optional[int] = None,
-        lr: Optional[float] = 0.001,
+        lr: float = 0.001,
+        scheduler_gamma: Optional[float] = 0.1,
+        scheduler_step_size: Optional[int] = 25,
+        weight_decay: float = 0.0,
+        optimizer_alg: str = "adam",
         class_weights: Optional[list] = None,
         name: Optional[str] = None,
     ):
         super().__init__()
         self.name = name
         self.lr = lr
-        self.num_classes = num_classes
+        self.scheduler_gamma = scheduler_gamma
+        self.scheduler_step_size = scheduler_step_size
+        self.weight_decay = weight_decay
+        self.optimizer_alg = optimizer_alg
+        self.num_classes = 3
         self.classes = ["AD", "MCI", "CN"]
 
         if class_weights is not None:
             class_weights = torch.Tensor(class_weights)
- 
-        self.criterion = nn.CrossEntropyLoss(weight=class_weights) 
 
-        self.model = ConvNet()
+        self.criterion = nn.CrossEntropyLoss(weight=class_weights)
 
-        # pretrained_weights = torch.load("data/convnet.pt")
-        # for k, v in pretrained_weights.items():
-        #     if "classifier.2" not in k:
-        #         self.model.state_dict()[k].copy_(v)
-        #     else:
-        #         nn.init.normal(self.model.state_dict()[k], 0,1)
-        #         print("Skipping", k)
+        self.model = ConvNet(dropout=dropout)
 
         if freeze_block is not None:
             self.freeze_linear(freeze_block)
@@ -139,8 +140,27 @@ class Classifier3D(pl.LightningModule):
         return x
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0)
-        return optimizer
+        if self.optimizer_alg == "adam":
+            optimizer = torch.optim.Adam(
+                self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
+            )
+        elif self.optimizer_alg == "sgd":
+            optimizer = torch.optim.SGD(
+                self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
+            )
+        elif self.optimizer_alg == "lion":
+            optimizer = Lion(
+                self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
+            )
+        if self.scheduler_gamma is not None and self.scheduler_step_size is not None:
+            scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer,
+                step_size=self.scheduler_step_size,
+                gamma=self.scheduler_gamma,
+            )
+            return [optimizer], [scheduler]
+        else:
+            return optimizer
 
     def training_step(self, batch, batch_idx):
         x, y = batch["image"], batch["label"]
@@ -181,7 +201,7 @@ class Classifier3D(pl.LightningModule):
 
     def on_validation_epoch_end(self) -> None:
         self.log_conf_matrix(mode="val")
-    
+
     def on_train_epoch_end(self) -> None:
         self.log_conf_matrix(mode="train")
 
@@ -189,17 +209,14 @@ class Classifier3D(pl.LightningModule):
         if mode == "val":
             fig = self.val_conf_matrix.plot()
             name = "Validation_Confusion_Matrix"
-            self.logger.experiment.add_figure(
-                name, fig, global_step=self.current_epoch
-            )
+            self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
             self.val_conf_matrix.reset()
         else:
             fig = self.train_conf_matrix.plot()
             name = "Train_Confusion_Matrix"
-            self.logger.experiment.add_figure(
-                name, fig, global_step=self.current_epoch
-            )
+            self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
             self.train_conf_matrix.reset()
+        plt.close()
 
     def log_images(self, images, labels, preds):
         random_index = np.random.randint(0, len(images))
@@ -221,6 +238,7 @@ class Classifier3D(pl.LightningModule):
             fig,
             self.current_epoch,
         )
+        plt.close(fig)
 
 
 class ConfusionMatrixPloter:
@@ -255,9 +273,8 @@ class ConfusionMatrixPloter:
                     ha="center",
                     va="center",
                     color="black",
-                    fontsize=26
+                    fontsize=26,
                 )
-
         return plt.gcf()
 
     def reset(self):
