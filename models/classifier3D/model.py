@@ -240,6 +240,12 @@ class Classifier3D(pl.LightningModule):
         )
         plt.close(fig)
 
+    @torch.no_grad()
+    def predict(self, image):
+        pred = self(image)
+        results = {self.classes[i]: round(float(p), 2) for i, p in enumerate(pred[0])}
+        return results
+
 
 class ConfusionMatrixPloter:
     def __init__(self, classes):
