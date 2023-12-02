@@ -13,18 +13,26 @@ from models.classifier3D.model import Classifier3D
 model = Classifier3D()
 # %%
 weights = torch.load(
-    "lightning_logs/checkpoints/convnet3d-from-checkpoint/convnet3d-from-checkpoint-epoch=66-val_loss=0.35-val_f1=0.94.ckpt"
+    "/Users/bruno/Documents/DataScience/ALZHEIMER/alzheimer-model/models/weights/best-model-so-far.ckpt",
+    map_location=torch.device("cpu"),
 )["state_dict"]
 weights
 
 # %%
-model.load_state_dict(weights)
+for k, v in weights.items():
+    if k in model.state_dict().keys():
+        print(k, " loaded")
+        model.state_dict()[k] = v
+    else:
+        print(k, " not loaded")
 # %%
 torch.manual_seed(123)
-train_path = "data/new-norm/train.hdf5"
+train_path = (
+    "/Users/bruno/Documents/DataScience/ALZHEIMER/alzheimer-model/data/train.hdf5"
+)
 train_h5 = h5py.File(train_path, "r")
 train_data = train_h5["X_nii"]
-input = train_data[15]
+input = train_data[1]
 input.shape
 
 # %%
@@ -44,7 +52,7 @@ print("Convergence Delta:", delta)
 # %%
 from matplotlib import pyplot as plt
 
-index = 25
+index = 75
 plt.imshow(attributions[0, 0, index, :, :].detach().numpy(), cmap="bwr")
 # Add scale bar
 plt.colorbar()
