@@ -1,130 +1,98 @@
-from datetime import datetime
 import argparse
+import os
+import sys
+
 import torch
+import yaml
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import (
-    LearningRateFinder,
-    ModelCheckpoint,
-    StochasticWeightAveraging,
-)
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from classifier3D.model import Classifier3D
-
+sys.path.append("./")
 from dataset import ADNIDataModule
 
+from models.classifier3D.model import Classifier3D
 
-def get_args():
-    parser = argparse.ArgumentParser(
-        " Alzheimer Disease Classifier for ADNI Dataset",
-        add_help=False,
-    )
 
-    # Model parameters
-    parser.add_argument(
-        "--model_name",
-        default="classifier3D",
-        type=str,
-        metavar="MODEL",
-        help="Name of model to train",
-    )
-    parser.add_argument(
-        "--lr",
-        default=1e-5,
-        type=float,
-        metavar="LR",
-        help="initial learning rate",
-    )
-    parser.add_argument(
-        "--batch_size", default=32, type=int, metavar="N", help="mini-batch size"
-    )
-    parser.add_argument("--num_workers", default=4, type=int, help="Number of workers")
-    parser.add_argument(
-        "--max_epochs", default=5000, type=int, help="Max epochs to train"
-    )
-    parser.add_argument(
-        "--train_dataset_path", default="data..", type=str, help="Path to train dataset"
-    )
-    parser.add_argument(
-        "--val_dataset_path", default="data..", type=str, help="Path to val dataset"
-    )
-
-    return parser.parse_args()
+def get_args_from_yaml(config_path):
+    with open(config_path, "r") as config_file:
+        config = yaml.load(config_file, Loader=yaml.FullLoader)
+    return argparse.Namespace(**config)
 
 
 def train(args):
     model_name = args.model_name
-    hour_str = datetime.now().strftime("%m_%d_%H_%M")
-    experiment_name = f"{model_name}_{hour_str}"
 
     print("Loading models")
-    model = Classifier3D(lr=args.lr)
+    model = Classifier3D(
+        lr=float(args.lr),
+        scheduler_step_size=args.scheduler_step_size,
+        scheduler_gamma=args.scheduler_gamma,
+        weight_decay=float(args.weight_decay),
+        optimizer_alg=args.optimizer_alg,
+        freeze_block=args.freeze_block,
+        dropout=float(args.dropout),
+        name=model_name,
+        class_weights=args.class_weights,
+    )
+
+    if args.checkpoint_path is not None:
+        weights = torch.load(args.checkpoint_path)["state_dict"]
+        model.load_state_dict(weights)
 
     print("Loading data module")
     datamodule = ADNIDataModule(
-        train_path=args.train_dataset_path,
-        val_path=args.val_dataset_path,
+        data_path=args.data_path,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
     )
 
     # Callbacks
     print("Defining callbacks")
-
-    class FineTuneLearningRateFinder(LearningRateFinder):
-        def __init__(self, milestones, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.milestones = milestones
-
-        def on_fit_start(self, *args, **kwargs):
-            return
-
-        def on_train_epoch_start(self, trainer, pl_module):
-            if trainer.current_epoch in self.milestones:
-                self.lr_find(trainer, pl_module)
-
     checkpoint_callback = ModelCheckpoint(
-        dirpath=f"lightning_logs/watermark_detector/checkpoints/{experiment_name}",
+        dirpath=f"lightning_logs/checkpoints/{model_name}",
         filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_f1:.2f}}",
         monitor="val_f1",
         mode="max",
-        save_top_k=5,
+        save_top_k=3,
     )
-
-    ftlr_callback = FineTuneLearningRateFinder(
-        milestones=[0, 5, 10, 20],
-        min_lr=1e-8,
-        max_lr=1e-1,
-        num_training_steps=200,
-        early_stop_threshold=8.0,
-    )
-    swa_callback = StochasticWeightAveraging(swa_lrs=1e-2)
+    lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
     # Instantiate the TensorBoard logger
     tensorboard_logger = TensorBoardLogger("lightning_logs/classifier", name=model_name)
 
+    config_copy_path = os.path.join(tensorboard_logger.log_dir, "config.yaml")
+
     # Set up the PyTorch Lightning trainer
     print("Running trainer")
-    torch.set_float32_matmul_precision("high")
+    torch.set_float32_matmul_precision(args.precision)
 
     trainer = Trainer(
         max_epochs=args.max_epochs,
         precision="32",
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
-        callbacks=[checkpoint_callback, ftlr_callback, swa_callback],
+        callbacks=[checkpoint_callback, lr_monitor],
         logger=tensorboard_logger,
+        log_every_n_steps=5,
+        gradient_clip_val=0.5,
     )
 
     # Train the model
-    trainer.fit(
-        model,
-        datamodule=datamodule,
-    )
+    try:
+        trainer.fit(
+            model,
+            datamodule=datamodule,
+        )
+    except KeyboardInterrupt:
+        print("Keyboard interrupt, saving config file")
+        with open(config_copy_path, "w") as config_copy_file:
+            yaml.dump(vars(args), config_copy_file)
 
-    # Test the model
-    trainer.test(model, datamodule=datamodule)
+    finally:
+        with open(config_copy_path, "w") as config_copy_file:
+            yaml.dump(vars(args), config_copy_file)
 
 
 if __name__ == "__main__":
-    args = get_args()
+    args = get_args_from_yaml("models/core/versions/config.yaml")
     train(args)

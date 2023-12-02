@@ -50,6 +50,10 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+lightning_logs
+.runs
+
 
 # Files
 data
+lightning_logs
