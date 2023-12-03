@@ -57,3 +57,5 @@ lightning_logs
 # Files
 data
 lightning_logs
+cerebra_100_120_100.nii
+best-model-so-far.ckpt
