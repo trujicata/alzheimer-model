@@ -5,13 +5,16 @@ import sys
 import torch
 import yaml
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 sys.path.append("./")
 from dataset import ADNIDataModule
-
 from models.classifier3D.model import Classifier3D
+
+
+def get_args():
+    return parser.parse_args()
 
 
 def get_args_from_yaml(config_path):
@@ -23,6 +26,9 @@ def get_args_from_yaml(config_path):
 def train(args):
     model_name = args.model_name
 
+    # Set seed for reproducibility
+    torch.manual_seed(42)
+
     print("Loading models")
     model = Classifier3D(
         lr=float(args.lr),
@@ -31,6 +37,7 @@ def train(args):
         weight_decay=float(args.weight_decay),
         optimizer_alg=args.optimizer_alg,
         freeze_block=args.freeze_block,
+        num_conv_blocks=args.num_conv_blocks,
         dropout=float(args.dropout),
         name=model_name,
         class_weights=args.class_weights,
@@ -94,5 +101,14 @@ def train(args):
 
 
 if __name__ == "__main__":
-    args = get_args_from_yaml("models/core/versions/config.yaml")
+    parser = argparse.ArgumentParser(description="Train a classifier model")
+    parser.add_argument(
+        "--config",
+        metavar="config",
+        type=str,
+        help="Path to the YAML configuration file",
+        default="models/core/versions/config.yaml",
+    )
+    args = parser.parse_args()
+    args = get_args_from_yaml(args.config)
     train(args)
