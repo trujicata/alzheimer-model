@@ -1,0 +1,12 @@
+model_name: icae
+lr: 1e-5
+scheduler_step_size: null
+scheduler_gamma: null
+weight_decay: 0.0005
+optimizer_alg: lion
+batch_size: 256
+num_workers: 8
+max_epochs: 200
+data_path: data/new-norm
+precision: high
+checkpoint_path: lightning_logs/checkpoints/icae/icae-epoch=199-val_loss=0.11-val_ssim=0.87.ckpt
