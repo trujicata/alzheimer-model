@@ -1,5 +1,4 @@
 import os
-import time
 
 import boto3
 import h5py
