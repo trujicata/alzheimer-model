@@ -91,7 +91,6 @@ class ViT(nn.Module):
     def __init__(
         self,
         *,
-        transformer_blocks=3,
         image_size,
         image_patch_size,
         frames,
@@ -141,41 +140,36 @@ class ViT(nn.Module):
             nn.Linear(patch_dim, dim),
             nn.LayerNorm(dim),
         )
+        self.age_embedding = nn.Embedding(51, dim)
+        self.sex_embedding = nn.Embedding(2, dim)
 
-        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
+        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 3, dim))
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
-        self.transformer_blocks = []
-        for _ in range(transformer_blocks):
-            self.transformer_blocks.append(
-                Transformer(
-                    dim,
-                    depth,
-                    heads,
-                    dim_head,
-                    mlp_dim,
-                    dropout,
-                )
-            )
-        self.transformer_blocks = nn.ModuleList(self.transformer_blocks)
+        self.transformer1 = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
+        self.transformer2 = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
+        self.transformer3 = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
         self.pool = pool
         self.to_latent = nn.Identity()
 
         self.mlp_head = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, num_classes))
 
-    def forward(self, video):
-        x = self.to_patch_embedding(video)
-        b, n, _ = x.shape
+    def forward(self, video, age, sex):
+        visual_output = self.to_patch_embedding(video)
+        b, n, _ = visual_output.shape
+        age_embedding = self.age_embedding(age)
+        sex_embedding = self.sex_embedding(sex)
 
         cls_tokens = repeat(self.cls_token, "1 1 d -> b 1 d", b=b)
-        x = torch.cat((cls_tokens, x), dim=1)
-        x += self.pos_embedding[:, : (n + 1)]
+        x = torch.cat((cls_tokens, age_embedding, sex_embedding, visual_output), dim=1)
+        x += self.pos_embedding[:, : (n + 3)]
         x = self.dropout(x)
 
-        for transformer in self.transformer_blocks:
-            x = transformer(x)
+        x = self.transformer1(x)
+        x = self.transformer2(x)
+        x = self.transformer3(x)
 
         x = x.mean(dim=1) if self.pool == "mean" else x[:, 0]
 
@@ -188,7 +182,6 @@ class ViTClassifier3D(pl.LightningModule):
         self,
         name: str,
         lr: float = 1e-3,
-        transformer_blocks: int = 3,
         image_patch_size: int = 50,
         frame_patch_size: int = 10,
         dim: int = 1024,
@@ -222,7 +215,6 @@ class ViTClassifier3D(pl.LightningModule):
 
         self.model = ViT(
             image_size=100,
-            transformer_blocks=transformer_blocks,
             image_patch_size=image_patch_size,
             frames=120,
             frame_patch_size=frame_patch_size,
@@ -239,8 +231,8 @@ class ViTClassifier3D(pl.LightningModule):
         )
         self.model.mlp_head = nn.Sequential(self.model.mlp_head, nn.Softmax(dim=1))
 
-    def forward(self, x):
-        x = self.model(x)
+    def forward(self, image, age, sex):
+        x = self.model(image, age, sex)
         return x
 
     def configure_optimizers(self):
@@ -267,8 +259,8 @@ class ViTClassifier3D(pl.LightningModule):
             return optimizer
 
     def training_step(self, batch, batch_idx):
-        x, y = batch["image"], batch["label"]
-        logits = self(x)
+        x, age, sex, y = batch["image"], batch["age"], batch["sex"], batch["label"]
+        logits = self(x, age, sex)
         loss = self.criterion(logits, y)
 
         class_predictions = logits.argmax(dim=1)
@@ -280,8 +272,8 @@ class ViTClassifier3D(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch["image"], batch["label"]
-        logits = self(x)
+        x, age, sex, y = batch["image"], batch["age"], batch["sex"], batch["label"]
+        logits = self(x, age, sex)
         loss = self.criterion(logits, y)
 
         class_predictions = logits.argmax(dim=1)

@@ -9,7 +9,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 sys.path.append("./")
-from models.core.dataset import ADNIDataModule
+from models.vit.dataset import ADNIDataModule
 
 from models.vit.model import ViTClassifier3D
 
@@ -34,7 +34,6 @@ def train(args):
     model = ViTClassifier3D(
         name=args.model_name,
         lr=float(args.lr),
-        transformer_blocks=args.transformer_blocks,
         image_patch_size=args.image_patch_size,
         frame_patch_size=args.frame_patch_size,
         dim=args.dim,
