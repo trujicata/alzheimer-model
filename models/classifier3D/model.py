@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 from lion_pytorch import Lion
 from matplotlib import pyplot as plt
-from torchmetrics import F1Score, Precision, Recall
 
 
 class Flatten(nn.Module):
@@ -50,33 +49,16 @@ class ResBlock(nn.Module):
 
 
 class ConvNet(nn.Module):
-    def __init__(self, dropout: float = 0.01):
+    def __init__(self, num_blocks: int = 3, dropout: float = 0.01):
         super(ConvNet, self).__init__()
 
-        self.conv_block_1 = nn.Sequential(
-            nn.Conv3d(1, 5, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool3d(kernel_size=2, stride=2),
-            nn.BatchNorm3d(5),
-        )
+        self.conv_blocks = self.create_conv_blocks(num_blocks)
 
-        self.conv_block_2 = nn.Sequential(
-            nn.Conv3d(5, 5, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool3d(kernel_size=2, stride=2),
-            nn.BatchNorm3d(5),
-        )
-
-        self.conv_block_3 = nn.Sequential(
-            nn.Conv3d(5, 5, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool3d(kernel_size=2, stride=2),
-            nn.BatchNorm3d(5),
-        )
         self.flatten = nn.Flatten()
 
         self.classifier = nn.Sequential(
-            nn.Sequential(nn.Dropout(dropout), nn.ReLU(), nn.Linear(10800, 64)),
+            nn.Sequential(nn.Dropout(dropout), nn.ReLU(), nn.Linear(1260, 512)),
+            nn.Sequential(nn.Dropout(dropout), nn.ReLU(), nn.Linear(512, 64)),
             nn.Sequential(nn.Dropout(dropout), nn.ReLU(), nn.Linear(64, 32)),
             nn.Sequential(
                 nn.Dropout(dropout), nn.ReLU(), nn.Linear(32, 3), nn.Softmax(dim=1)
@@ -84,17 +66,33 @@ class ConvNet(nn.Module):
         )
 
     def forward(self, x):
-        x = self.conv_block_1(x)
-        x = self.conv_block_2(x)
-        x = self.conv_block_3(x)
+        x = self.conv_blocks(x)
         x = self.flatten(x)
         x = self.classifier(x)
         return x
+
+    def create_conv_blocks(self, num_blocks: int = 3):
+        blocks = []
+        for i in range(num_blocks):
+            if i == 0:
+                n = 1
+            else:
+                n = 5
+            blocks.append(
+                nn.Sequential(
+                    nn.Conv3d(n, 5, kernel_size=3, padding=1),
+                    nn.ReLU(),
+                    nn.MaxPool3d(kernel_size=2, stride=2),
+                    nn.BatchNorm3d(5),
+                )
+            )
+        return nn.Sequential(*blocks)
 
 
 class Classifier3D(pl.LightningModule):
     def __init__(
         self,
+        num_conv_blocks: int = 4,
         dropout: float = 0.01,
         freeze_block: Optional[int] = None,
         lr: float = 0.001,
@@ -120,20 +118,17 @@ class Classifier3D(pl.LightningModule):
 
         self.criterion = nn.CrossEntropyLoss(weight=class_weights)
 
-        self.model = ConvNet(dropout=dropout)
+        self.model = ConvNet(num_blocks=num_conv_blocks, dropout=dropout)
 
         if freeze_block is not None:
-            self.freeze_linear(freeze_block)
+            self.freeze_feature_extractor(freeze_block)
 
-        self.precision = Precision(task="multiclass", num_classes=self.num_classes)
-        self.recall = Recall(task="multiclass", num_classes=self.num_classes)
-        self.f1 = F1Score(task="multiclass", num_classes=self.num_classes)
         self.val_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
         self.train_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
 
-    def freeze_linear(self, block_number):
-        for param in self.model.classifier[block_number].parameters():
-            param.requires_grad = False
+    def freeze_feature_extractor(self, block_number):
+        for i in range(block_number):
+            self.model.conv_blocks[i].requires_grad_(False)
 
     def forward(self, x):
         x = self.model(x)
@@ -184,26 +179,36 @@ class Classifier3D(pl.LightningModule):
         preds = torch.zeros_like(logits)
         preds[torch.arange(logits.shape[0]), class_predictions] = 1
 
-        self.precision(preds, y)
-        self.recall(preds, y)
-        self.f1(preds, y)
         self.val_conf_matrix.update(preds, y)
 
         self.log_dict(
             {
                 "val_loss": loss,
-                "val_f1": self.f1,
-                "val_precision": self.precision,
-                "val_recall": self.recall,
-            }
+            },
         )
         self.log_images(x, y, preds)
 
     def on_validation_epoch_end(self) -> None:
+        precision, recall, f1 = self.calculate_metrics(self.val_conf_matrix.compute())
         self.log_conf_matrix(mode="val")
+        self.log_dict(
+            {
+                "val_precision": precision,
+                "val_recall": recall,
+                "val_f1": f1,
+            }
+        )
 
     def on_train_epoch_end(self) -> None:
+        precision, recall, f1 = self.calculate_metrics(self.train_conf_matrix.compute())
         self.log_conf_matrix(mode="train")
+        self.log_dict(
+            {
+                "train_precision": precision,
+                "train_recall": recall,
+                "train_f1": f1,
+            }
+        )
 
     def log_conf_matrix(self, mode="val"):
         if mode == "val":
@@ -240,6 +245,18 @@ class Classifier3D(pl.LightningModule):
         )
         plt.close(fig)
 
+    def calculate_metrics(self, confusion_matrix):
+        precision = np.diag(confusion_matrix) / np.sum(confusion_matrix, axis=0)
+        recall = np.diag(confusion_matrix) / np.sum(confusion_matrix, axis=1)
+        f1 = 2 * (precision * recall) / (precision + recall)
+
+        for metric in [precision, recall, f1]:
+            metric[np.isnan(metric)] = 0
+            # Transform to torch
+            metric = torch.Tensor(metric)
+
+        return precision.mean(), recall.mean(), f1.mean()
+
 
 class ConfusionMatrixPloter:
     def __init__(self, classes):
@@ -253,9 +270,14 @@ class ConfusionMatrixPloter:
         ).numpy()
         self.matrix += conf_matrix
 
+    def compute(self):
+        return self.matrix
+
     def plot(self):
         plt.figure(figsize=(10, 10))
-        plt.imshow(self.matrix, interpolation="nearest", cmap=plt.cm.Blues)
+        normalized_matrix = self.matrix / self.matrix.sum(axis=1, keepdims=True)
+
+        plt.imshow(normalized_matrix, interpolation="nearest", cmap=plt.cm.Blues)
         plt.title("Confusion Matrix")
 
         tick_marks = np.arange(self.num_classes)
@@ -269,7 +291,7 @@ class ConfusionMatrixPloter:
                 plt.text(
                     j,
                     i,
-                    str(int(self.matrix[i, j])),
+                    round(normalized_matrix[i, j], 2),
                     ha="center",
                     va="center",
                     color="black",

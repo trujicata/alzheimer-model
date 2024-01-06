@@ -3,7 +3,6 @@ import os
 import boto3
 import h5py
 import pytorch_lightning as pl
-import torch
 import torchvision.transforms as T
 from torch.utils.data import DataLoader, Dataset
 
@@ -12,29 +11,22 @@ class ADNIDataset(Dataset):
     def __init__(
         self,
         X,
-        y,
         transform=None,
-        num_classes=3,
     ):
         self.X = X
-        self.y = y
         self.transform = transform
-        self.num_classes = num_classes
 
     def __len__(self):
         return len(self.X)
 
     def __getitem__(self, idx):
         image = self.X[idx]
-        label_id = int(self.y[idx])
-        label = torch.zeros(self.num_classes)
-        label[label_id] = 1
+        image = image[2:-2, 2:-2, :]
 
         if self.transform:
             image = self.transform(image)
 
-        sample = {"image": image.unsqueeze(0), "label": label}
-        return sample
+        return image.unsqueeze(0)
 
 
 class ADNIDataModule(pl.LightningDataModule):
@@ -62,15 +54,15 @@ class ADNIDataModule(pl.LightningDataModule):
         val_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
         holdout_h5_ = h5py.File(os.path.join(self.data_path, "holdout.hdf5"), "r")
 
-        X_train, y_train = train_h5_["X_nii"], train_h5_["y"]
-        X_val, y_val = val_h5_["X_nii"], val_h5_["y"]
+        X_train = train_h5_["X_nii"]
+        X_val = val_h5_["X_nii"]
 
         # mean, std = mean_and_standard_deviation(X_train)
         train_transforms = T.Compose([T.ToTensor()])  # TODO: Add augmentation
         val_transforms = T.Compose([T.ToTensor()])  # TODO: More transforms?
 
-        self.train_dataset = ADNIDataset(X_train, y_train, transform=train_transforms)
-        self.val_dataset = ADNIDataset(X_val, y_val, transform=val_transforms)
+        self.train_dataset = ADNIDataset(X_train, transform=train_transforms)
+        self.val_dataset = ADNIDataset(X_val, transform=val_transforms)
 
     def train_dataloader(self):
         return DataLoader(
@@ -88,15 +80,4 @@ class ADNIDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             shuffle=False,
             pin_memory=True,
-        )
-
-    def check_balance(self, dataset: Dataset) -> None:
-        labels = []
-        for i in range(len(dataset)):
-            sample = dataset[i]
-            labels.append(torch.argmax(sample["label"]))
-        labels = torch.stack(labels)
-        print("Label counts: ", torch.unique(labels, return_counts=True))
-        print(
-            "Label counts: ", torch.unique(labels, return_counts=True)[1] / len(labels)
         )
