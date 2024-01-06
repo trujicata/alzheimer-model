@@ -18,9 +18,9 @@ def class_trad(x):
 
 
 def class_trad2(x):
-    if x < 0.33:  # CN
+    if x < 0.40:  # CN
         return 2
-    elif x < 0.66:  # MCI
+    elif x < 0.60:  # MCI
         return 1
     else:  # AD
         return 0
@@ -46,6 +46,8 @@ class ADNIDataset(Dataset):
         image = self.X[idx]
         label_id = int(self.y[idx])
         label = class_trad(label_id)
+        label = torch.tensor(label, dtype=torch.float32)
+        label = label.unsqueeze(0).transpose(0, -1)
 
         if self.transform:
             image = self.transform(image)

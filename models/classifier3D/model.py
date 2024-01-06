@@ -118,7 +118,7 @@ class Classifier3D(pl.LightningModule):
         if class_weights is not None:
             class_weights = torch.Tensor(class_weights)
 
-        self.criterion = nn.L1Loss()
+        self.criterion = nn.MSELoss()
 
         self.model = ConvNet(num_blocks=num_conv_blocks, dropout=dropout)
 
@@ -167,6 +167,11 @@ class Classifier3D(pl.LightningModule):
         class_predictions = [class_trad2(x) for x in logits]
         preds = torch.zeros(logits.shape[0], 3)
         preds[torch.arange(logits.shape[0]), class_predictions] = 1
+
+        class_targets = [class_trad2(x) for x in y]
+        y = torch.zeros(y.shape[0], 3)
+        y[torch.arange(y.shape[0]), class_targets] = 1
+
         self.train_conf_matrix.update(preds, y)
 
         self.log("train_loss", loss)
@@ -180,6 +185,10 @@ class Classifier3D(pl.LightningModule):
         class_predictions = [class_trad2(x) for x in logits]
         preds = torch.zeros(logits.shape[0], 3)
         preds[torch.arange(logits.shape[0]), class_predictions] = 1
+
+        class_targets = [class_trad2(x) for x in y]
+        y = torch.zeros(y.shape[0], 3)
+        y[torch.arange(y.shape[0]), class_targets] = 1
 
         self.val_conf_matrix.update(preds, y)
 
