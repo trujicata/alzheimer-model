@@ -7,6 +7,8 @@ import torch.nn as nn
 from lion_pytorch import Lion
 from matplotlib import pyplot as plt
 
+from models.core.dataset import class_trad2
+
 
 class Flatten(nn.Module):
     """Flatten a tensor"""
@@ -61,7 +63,7 @@ class ConvNet(nn.Module):
             nn.Sequential(nn.Dropout(dropout), nn.ReLU(), nn.Linear(512, 64)),
             nn.Sequential(nn.Dropout(dropout), nn.ReLU(), nn.Linear(64, 32)),
             nn.Sequential(
-                nn.Dropout(dropout), nn.ReLU(), nn.Linear(32, 3), nn.Softmax(dim=1)
+                nn.Dropout(dropout), nn.ReLU(), nn.Linear(32, 1), nn.Sigmoid()
             ),
         )
 
@@ -116,7 +118,7 @@ class Classifier3D(pl.LightningModule):
         if class_weights is not None:
             class_weights = torch.Tensor(class_weights)
 
-        self.criterion = nn.CrossEntropyLoss(weight=class_weights)
+        self.criterion = nn.L1Loss()
 
         self.model = ConvNet(num_blocks=num_conv_blocks, dropout=dropout)
 
@@ -162,8 +164,8 @@ class Classifier3D(pl.LightningModule):
         logits = self(x)
         loss = self.criterion(logits, y)
 
-        class_predictions = logits.argmax(dim=1)
-        preds = torch.zeros_like(logits)
+        class_predictions = [class_trad2(x) for x in logits]
+        preds = torch.zeros(logits.shape[0], 3)
         preds[torch.arange(logits.shape[0]), class_predictions] = 1
         self.train_conf_matrix.update(preds, y)
 
@@ -175,8 +177,8 @@ class Classifier3D(pl.LightningModule):
         logits = self(x)
         loss = self.criterion(logits, y)
 
-        class_predictions = logits.argmax(dim=1)
-        preds = torch.zeros_like(logits)
+        class_predictions = [class_trad2(x) for x in logits]
+        preds = torch.zeros(logits.shape[0], 3)
         preds[torch.arange(logits.shape[0]), class_predictions] = 1
 
         self.val_conf_matrix.update(preds, y)
