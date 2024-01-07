@@ -140,10 +140,8 @@ class ViT(nn.Module):
             nn.Linear(patch_dim, dim),
             nn.LayerNorm(dim),
         )
-        self.age_embedding = nn.Embedding(6, dim)
-        self.sex_embedding = nn.Embedding(2, dim)
 
-        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 3, dim))
+        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
@@ -156,14 +154,12 @@ class ViT(nn.Module):
 
         self.mlp_head = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, num_classes))
 
-    def forward(self, video, age, sex):
+    def forward(self, video):
         visual_output = self.to_patch_embedding(video)
         b, n, _ = visual_output.shape
-        age_embedding = self.age_embedding(age)
-        sex_embedding = self.sex_embedding(sex)
 
         cls_tokens = repeat(self.cls_token, "1 1 d -> b 1 d", b=b)
-        x = torch.cat((cls_tokens, age_embedding, sex_embedding, visual_output), dim=1)
+        x = torch.cat((cls_tokens, visual_output), dim=1)
         x += self.pos_embedding[:, : (n + 3)]
         x = self.dropout(x)
 
@@ -231,8 +227,8 @@ class ViTClassifier3D(pl.LightningModule):
         )
         self.model.mlp_head = nn.Sequential(self.model.mlp_head, nn.Softmax(dim=1))
 
-    def forward(self, image, age, sex):
-        x = self.model(image, age, sex)
+    def forward(self, image):
+        x = self.model(image)
         return x
 
     def configure_optimizers(self):
@@ -259,8 +255,8 @@ class ViTClassifier3D(pl.LightningModule):
             return optimizer
 
     def training_step(self, batch, batch_idx):
-        x, age, sex, y = batch["image"], batch["age"], batch["sex"], batch["label"]
-        logits = self(x, age, sex)
+        x, y = batch["image"], batch["label"]
+        logits = self(x)
         loss = self.criterion(logits, y)
 
         class_predictions = logits.argmax(dim=1)
@@ -272,8 +268,8 @@ class ViTClassifier3D(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, age, sex, y = batch["image"], batch["age"], batch["sex"], batch["label"]
-        logits = self(x, age, sex)
+        x, y = batch["image"], batch["label"]
+        logits = self(x)
         loss = self.criterion(logits, y)
 
         class_predictions = logits.argmax(dim=1)
