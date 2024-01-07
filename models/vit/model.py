@@ -140,7 +140,7 @@ class ViT(nn.Module):
             nn.Linear(patch_dim, dim),
             nn.LayerNorm(dim),
         )
-        self.age_embedding = nn.Embedding(51, dim)
+        self.age_embedding = nn.Embedding(6, dim)
         self.sex_embedding = nn.Embedding(2, dim)
 
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 3, dim))

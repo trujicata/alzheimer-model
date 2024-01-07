@@ -8,6 +8,21 @@ import torchvision.transforms as T
 from torch.utils.data import DataLoader, Dataset
 
 
+def age_range(age):
+    if age <= 50:
+        return 0
+    elif age < 50 and age <= 60:
+        return 1
+    elif age < 60 and age <= 70:
+        return 2
+    elif age < 70 and age <= 80:
+        return 3
+    elif age < 80 and age <= 90:
+        return 4
+    else:
+        return 5
+
+
 class ADNIDataset(Dataset):
     def __init__(
         self,
@@ -31,7 +46,7 @@ class ADNIDataset(Dataset):
 
     def __getitem__(self, idx):
         image = self.X[idx]
-        age = self.age[idx] - 50
+        age = age_range(self.age[idx])
         age = torch.tensor(age, dtype=torch.int64)
         sex = self.sex[idx]
         sex = torch.tensor(sex, dtype=torch.int64)

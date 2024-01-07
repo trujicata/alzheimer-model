@@ -72,7 +72,9 @@ def train(args):
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
     # Instantiate the TensorBoard logger
-    tensorboard_logger = TensorBoardLogger("lightning_logs/classifier", name=model_name)
+    tensorboard_logger = TensorBoardLogger(
+        "lightning_logs/classifier/vit", name=model_name
+    )
 
     config_copy_path = os.path.join(tensorboard_logger.log_dir, "config.yaml")
 
