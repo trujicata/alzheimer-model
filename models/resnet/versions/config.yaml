@@ -5,7 +5,7 @@ data_path: data/new-norm
 model_depth: 18
 lr: 1e-3
 max_epochs: 70
-model_name: convnet3d-large-classifier
+model_name: resnet
 num_workers: 8
 optimizer_alg: adam
 precision: high

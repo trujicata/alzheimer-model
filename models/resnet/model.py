@@ -1,19 +1,13 @@
+from functools import partial
 from typing import Optional
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from lion_pytorch import Lion
 from matplotlib import pyplot as plt
-
-import torch
-import torch.nn as nn
-from functools import partial
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 
 def get_inplanes():

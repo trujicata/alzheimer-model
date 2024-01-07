@@ -10,6 +10,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 sys.path.append("./")
 from dataset import ADNIDataModule
+
 from models.regression_alexnet.model import Classifier3D
 
 
