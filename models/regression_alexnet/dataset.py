@@ -8,6 +8,24 @@ import torchvision.transforms as T
 from torch.utils.data import DataLoader, Dataset
 
 
+def class_trad(x):
+    if x == 0:  # AD
+        return 1
+    elif x == 1:  # MCI
+        return 0.5
+    elif x == 2:  # CN
+        return 0
+
+
+def class_trad2(x):
+    if x < 0.40:  # CN
+        return 2
+    elif x < 0.60:  # MCI
+        return 1
+    else:  # AD
+        return 0
+
+
 class ADNIDataset(Dataset):
     def __init__(
         self,
@@ -27,8 +45,9 @@ class ADNIDataset(Dataset):
     def __getitem__(self, idx):
         image = self.X[idx]
         label_id = int(self.y[idx])
-        label = torch.zeros(self.num_classes)
-        label[label_id] = 1
+        label = class_trad(label_id)
+        label = torch.tensor(label, dtype=torch.float32)
+        label = label.unsqueeze(0).transpose(0, -1)
 
         if self.transform:
             image = self.transform(image)

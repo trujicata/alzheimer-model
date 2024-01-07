@@ -7,47 +7,7 @@ import torch.nn as nn
 from lion_pytorch import Lion
 from matplotlib import pyplot as plt
 
-from models.core.dataset import class_trad2
-
-
-class Flatten(nn.Module):
-    """Flatten a tensor"""
-
-    def forward(self, input):
-        return input.view(input.size(0), -1)
-
-
-class ResBlock(nn.Module):
-    def __init__(self, block_number, input_size):
-        """Residual block for 3D CNN"""
-        super(ResBlock, self).__init__()
-
-        layer_in = input_size if input_size is not None else 2 ** (block_number + 1)
-        layer_out = 2 ** (block_number + 2)
-
-        self.conv1 = nn.Conv3d(
-            layer_in, layer_out, kernel_size=3, stride=1, padding=1, bias=False
-        )
-        self.bn1 = nn.BatchNorm3d(layer_out)
-        self.act1 = nn.ELU()
-
-        self.conv2 = nn.Conv3d(
-            layer_out, layer_in, kernel_size=3, stride=1, padding=1, bias=False
-        )
-        self.bn2 = nn.BatchNorm3d(layer_in)
-
-        self.act2 = nn.ELU()
-
-    def forward(self, x):
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.act1(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out += x
-        out = self.act2(out)
-        return out
+from models.regression_convnet.dataset import class_trad2
 
 
 class ConvNet(nn.Module):
