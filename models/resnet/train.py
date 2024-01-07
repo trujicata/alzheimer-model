@@ -105,7 +105,7 @@ if __name__ == "__main__":
         metavar="config",
         type=str,
         help="Path to the YAML configuration file",
-        default="models/core/versions/config.yaml",
+        default="models/resnet/versions/config.yaml",
     )
     args = parser.parse_args()
     args = get_args_from_yaml(args.config)
