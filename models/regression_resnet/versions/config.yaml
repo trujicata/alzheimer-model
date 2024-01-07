@@ -1,0 +1,14 @@
+batch_size: 64
+checkpoint_path: null
+data_path: data/original
+model_depth: 18
+lr: 1e-3
+max_epochs: 80
+model_name: regression-resnet
+num_workers: 8
+optimizer_alg: adam
+precision: high
+scheduler_gamma: 0.5
+scheduler_step_size: 20
+weight_decay: 0.0005
+params: [0.45, 0.55]
