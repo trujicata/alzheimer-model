@@ -115,7 +115,7 @@ if __name__ == "__main__":
         metavar="config",
         type=str,
         help="Path to the YAML configuration file",
-        default="models/vit/versions/config.yaml",
+        default="models/vanilla_vit/versions/config.yaml",
     )
     args = parser.parse_args()
     args = get_args_from_yaml(args.config)
