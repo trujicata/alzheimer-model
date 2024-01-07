@@ -267,7 +267,9 @@ class Classifier3D(pl.LightningModule):
 
         self.criterion = nn.CrossEntropyLoss(weight=class_weights)
 
-        self.model = generate_model(model_depth=model_depth, n_classes=self.num_classes)
+        self.model = generate_model(
+            model_depth=model_depth, n_input_channels=1, n_classes=self.num_classes
+        )
 
         self.val_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
         self.train_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
