@@ -7,7 +7,7 @@ import torch.nn as nn
 from lion_pytorch import Lion
 from matplotlib import pyplot as plt
 
-from models.regression_convnet.dataset import class_trad2
+from models.regression_alexnet.dataset import class_trad2
 
 
 class ConvNet(nn.Module):
@@ -64,6 +64,7 @@ class Classifier3D(pl.LightningModule):
         optimizer_alg: str = "adam",
         class_weights: Optional[list] = None,
         name: Optional[str] = None,
+        params: list = [0.4, 0.6],
     ):
         super().__init__()
         self.name = name
@@ -74,6 +75,7 @@ class Classifier3D(pl.LightningModule):
         self.optimizer_alg = optimizer_alg
         self.num_classes = 3
         self.classes = ["AD", "MCI", "CN"]
+        self.params = params
 
         if class_weights is not None:
             class_weights = torch.Tensor(class_weights)
@@ -124,11 +126,11 @@ class Classifier3D(pl.LightningModule):
         logits = self(x)
         loss = self.criterion(logits, y)
 
-        class_predictions = [class_trad2(x) for x in logits]
+        class_predictions = [class_trad2(x, self.params) for x in logits]
         preds = torch.zeros(logits.shape[0], 3)
         preds[torch.arange(logits.shape[0]), class_predictions] = 1
 
-        class_targets = [class_trad2(x) for x in y]
+        class_targets = [class_trad2(x, self.params) for x in y]
         y = torch.zeros(y.shape[0], 3)
         y[torch.arange(y.shape[0]), class_targets] = 1
 
@@ -142,11 +144,11 @@ class Classifier3D(pl.LightningModule):
         logits = self(x)
         loss = self.criterion(logits, y)
 
-        class_predictions = [class_trad2(x) for x in logits]
+        class_predictions = [class_trad2(x, self.params) for x in logits]
         preds = torch.zeros(logits.shape[0], 3)
         preds[torch.arange(logits.shape[0]), class_predictions] = 1
 
-        class_targets = [class_trad2(x) for x in y]
+        class_targets = [class_trad2(x, self.params) for x in y]
         y = torch.zeros(y.shape[0], 3)
         y[torch.arange(y.shape[0]), class_targets] = 1
 

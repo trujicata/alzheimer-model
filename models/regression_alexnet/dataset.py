@@ -17,10 +17,10 @@ def class_trad(x):
         return 0
 
 
-def class_trad2(x):
-    if x < 0.40:  # CN
+def class_trad2(x, params):
+    if x < params[0]:  # CN
         return 2
-    elif x < 0.60:  # MCI
+    elif x < params[1]:  # MCI
         return 1
     else:  # AD
         return 0

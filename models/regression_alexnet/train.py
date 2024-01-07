@@ -10,7 +10,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 sys.path.append("./")
 from dataset import ADNIDataModule
-from models.regression_convnet.model import Classifier3D
+from models.regression_alexnet.model import Classifier3D
 
 
 def get_args():
@@ -41,6 +41,7 @@ def train(args):
         dropout=float(args.dropout),
         name=model_name,
         class_weights=args.class_weights,
+        params=args.params,
     )
 
     if args.checkpoint_path is not None:
@@ -109,7 +110,7 @@ if __name__ == "__main__":
         metavar="config",
         type=str,
         help="Path to the YAML configuration file",
-        default="models/regression_convnet/versions/config.yaml",
+        default="models/regression_alexnet/versions/config.yaml",
     )
     args = parser.parse_args()
     args = get_args_from_yaml(args.config)
