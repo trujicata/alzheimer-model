@@ -3,8 +3,8 @@ import sys
 
 import h5py
 import torch
-from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms as T
 from tqdm import tqdm
 

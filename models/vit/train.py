@@ -10,7 +10,6 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 sys.path.append("./")
 from models.vit.dataset import ADNIDataModule
-
 from models.vit.model import ViTClassifier3D
 
 

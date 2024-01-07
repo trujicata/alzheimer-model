@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 
 import torch
 import yaml
@@ -8,10 +7,8 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
-sys.path.append("./")
-from dataset import ADNIDataModule
-
-from models.regression_alexnet.model import Classifier3D
+from models.regression_resnet.dataset import ADNIDataModule
+from models.regression_resnet.model import Classifier3D
 
 
 def get_args():
@@ -33,15 +30,12 @@ def train(args):
     print("Loading models")
     model = Classifier3D(
         lr=float(args.lr),
+        model_depth=args.model_depth,
         scheduler_step_size=args.scheduler_step_size,
         scheduler_gamma=args.scheduler_gamma,
         weight_decay=float(args.weight_decay),
         optimizer_alg=args.optimizer_alg,
-        freeze_block=args.freeze_block,
-        num_conv_blocks=args.num_conv_blocks,
-        dropout=float(args.dropout),
         name=model_name,
-        class_weights=args.class_weights,
         params=args.params,
     )
 
@@ -59,7 +53,7 @@ def train(args):
     # Callbacks
     print("Defining callbacks")
     checkpoint_callback = ModelCheckpoint(
-        dirpath=f"lightning_logs/checkpoints/{model_name}",
+        dirpath=f"lightning_logs/checkpoints/resnet/{model_name}",
         filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_f1:.2f}}",
         monitor="val_f1",
         mode="max",
@@ -69,7 +63,7 @@ def train(args):
 
     # Instantiate the TensorBoard logger
     tensorboard_logger = TensorBoardLogger(
-        "lightning_logs/classifier/convnet", name=model_name
+        "lightning_logs/classifier/resnet", name=model_name
     )
 
     config_copy_path = os.path.join(tensorboard_logger.log_dir, "config.yaml")
@@ -111,7 +105,7 @@ if __name__ == "__main__":
         metavar="config",
         type=str,
         help="Path to the YAML configuration file",
-        default="models/regression_alexnet/versions/config.yaml",
+        default="models/regression_resnet/versions/config.yaml",
     )
     args = parser.parse_args()
     args = get_args_from_yaml(args.config)
