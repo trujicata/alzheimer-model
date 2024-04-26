@@ -212,6 +212,7 @@ class ViTClassifier3D(pl.LightningModule):
         self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         self.val_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
         self.train_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
+        self.test_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
 
         self.model = ViT(
             image_size=100,
@@ -289,6 +290,35 @@ class ViTClassifier3D(pl.LightningModule):
         )
         self.log_images(x, y, preds)
 
+    def test_step(self, batch, batch_idx):
+        x, age, sex, y = batch["image"], batch["age"], batch["sex"], batch["label"]
+        logits = self(x, age, sex)
+        loss = self.criterion(logits, y)
+
+        class_predictions = logits.argmax(dim=1)
+        preds = torch.zeros_like(logits)
+        preds[torch.arange(logits.shape[0]), class_predictions] = 1
+
+        self.val_conf_matrix.update(preds, y)
+
+        self.log_dict(
+            {
+                "test_loss": loss,
+            },
+        )
+        self.log_images(x, y, preds)
+
+    def on_test_epoch_end(self) -> None:
+        precision, recall, f1 = self.calculate_metrics(self.test_conf_matrix.compute())
+        self.log_conf_matrix(mode="test")
+        self.log_dict(
+            {
+                "test_precision": precision,
+                "test_recall": recall,
+                "test_f1": f1,
+            }
+        )
+
     def on_validation_epoch_end(self) -> None:
         precision, recall, f1 = self.calculate_metrics(self.val_conf_matrix.compute())
         self.log_conf_matrix(mode="val")
@@ -317,6 +347,11 @@ class ViTClassifier3D(pl.LightningModule):
             name = "Validation_Confusion_Matrix"
             self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
             self.val_conf_matrix.reset()
+        elif mode == "test":
+            fig = self.test_conf_matrix.plot()
+            name = "Test_Confusion_Matrix"
+            self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
+            self.test_conf_matrix.reset()
         else:
             fig = self.train_conf_matrix.plot()
             name = "Train_Confusion_Matrix"

@@ -1,0 +1,16 @@
+model_name: convnet3d-large-classifier
+dropout: 0.001
+num_conv_blocks: 4
+lr: 5e-4
+scheduler_step_size: 30
+scheduler_gamma: 0.5
+weight_decay: 0
+optimizer_alg: lion
+class_weights: [0.85,0.4,0.7]
+freeze_block: null
+batch_size: 256
+num_workers: 8
+max_epochs: 300
+data_path: data/unprocessed
+precision: high
+checkpoint_path: null

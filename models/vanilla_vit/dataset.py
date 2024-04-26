@@ -1,5 +1,5 @@
 import os
-
+import numpy as np
 import boto3
 import h5py
 import pytorch_lightning as pl
@@ -13,8 +13,6 @@ class ADNIDataset(Dataset):
         self,
         X,
         y,
-        age,
-        sex,
         transform=None,
         num_classes=3,
     ):
@@ -57,7 +55,7 @@ class ADNIDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
 
     def setup(self, stage: str):
-        files = ["train.hdf5", "test.hdf5", "holdout.hdf5"]
+        files = ["train.hdf5", "test.hdf5", "post_pet_diag.hdf5"]
         s3 = boto3.client("s3")
         for file_name in files:
             path = os.path.join(self.data_path, file_name)
@@ -65,19 +63,17 @@ class ADNIDataModule(pl.LightningDataModule):
                 print("Downloadin the data from s3")
                 with open(path, "wb") as f:
                     s3.download_fileobj("normal-h5s", file_name, f)
-        train_h5_ = h5py.File(os.path.join(self.data_path, "train.hdf5"), "r")
-        val_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
-        holdout_h5_ = h5py.File(os.path.join(self.data_path, "holdout.hdf5"), "r")
+        train_1_h5_ = h5py.File(os.path.join(self.data_path, "train.hdf5"), "r")
+        train_2_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
+        val_h5_ = h5py.File(os.path.join(self.data_path, "post_pet_diag.hdf5"), "r")
 
-        X_train, y_train = (
-            train_h5_["X_nii"],
-            train_h5_["y"],
-        )
-        X_val, y_val = (
-            val_h5_["X_nii"],
-            val_h5_["y"],
-        )
+        X_1_train, y_1_train = train_1_h5_["X_nii"], train_1_h5_["y"]
+        X_2_train, y_2_train = train_2_h5_["X_nii"], train_2_h5_["y"]
 
+        X_train = np.concatenate((X_1_train, X_2_train))
+        y_train = np.concatenate((y_1_train, y_2_train))
+
+        X_val, y_val = val_h5_["X_nii"], val_h5_["y"]
         # mean, std = mean_and_standard_deviation(X_train)
         train_transforms = T.Compose([T.ToTensor()])  # TODO: Add augmentation
         val_transforms = T.Compose([T.ToTensor()])  # TODO: More transforms?

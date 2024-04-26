@@ -25,7 +25,7 @@ def main(
     print("Loading models")
     if model_name == "ResNet":
         from models.resnet.model import Classifier3D as Model
-    elif model_name == "RegressionResnet":
+    elif model_name == "RegressionResNet":
         from models.regression_resnet.model import Classifier3D as Model
     elif model_name == "AlexNet":
         from models.alexnet.model import Classifier3D as Model
@@ -36,15 +36,18 @@ def main(
     elif model_name == "ViTAgeGender":
         from models.vit.model import ViTClassifier3D as Model
 
-    model = Model()
+    model = Model(name=model_name)
 
     tensorboard_logger = TensorBoardLogger(
         f"lightning_logs/evaluation/{model_name}/{checkpoint_path.split('/')[-1]}"
     )
 
-    if checkpoint_path is not None:
-        weights = torch.load(checkpoint_path)["state_dict"]
-        model.load_state_dict(weights)
+    weights = torch.load(checkpoint_path)["state_dict"]
+    for k, v in model.state_dict().items():
+        if k in weights.keys():
+            model.state_dict()[k] = weights[k]
+        else:
+            print(f"Key {k} not found in checkpoint")
 
     print("Loading data module")
     datamodule = ClassificationDataModule(
@@ -57,18 +60,20 @@ def main(
 
     # Evaluate the model
     print("Evaluating the model")
-    trainer = Trainer()
+    trainer = Trainer(
+        logger=tensorboard_logger,
+    )
     trainer.test(model, datamodule=datamodule)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_name", type=str, required=True)
-    parser.add_argument("--data_path", type=str, required=True)
-    parser.add_argument("--post_or_pre", type=str, required=True)
-    parser.add_argument("--batch_size", type=int, required=True)
-    parser.add_argument("--num_workers", type=int, required=True)
-    parser.add_argument("--checkpoint_path", type=str, required=True)
+    parser.add_argument("--model-name", type=str, required=True)
+    parser.add_argument("--data-path", type=str, required=True)
+    parser.add_argument("--post-or-pre", type=str, required=True)
+    parser.add_argument("--batch-size", type=int, required=True)
+    parser.add_argument("--num-workers", type=int, required=True)
+    parser.add_argument("--checkpoint-path", type=str, required=True)
     args = parser.parse_args()
     main(
         model_name=args.model_name,

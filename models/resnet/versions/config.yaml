@@ -1,9 +1,9 @@
-batch_size: 256
-checkpoint_path: null
+batch_size: 64
+checkpoint_path: lightning_logs/checkpoints/resnet/resnet/resnet-epoch=59-val_loss=0.46-val_f1=0.76.ckpt
 class_weights: [0.87, 0.3, 0.7]
 data_path: data/new-norm
 model_depth: 18
-lr: 1e-3
+lr: 1e-5
 max_epochs: 70
 model_name: resnet
 num_workers: 8
@@ -12,3 +12,4 @@ precision: high
 scheduler_gamma: 0.5
 scheduler_step_size: 20
 weight_decay: 0.0005
+freeze: null

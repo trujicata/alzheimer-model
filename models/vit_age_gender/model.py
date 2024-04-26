@@ -180,7 +180,7 @@ class ViT(nn.Module):
 class ViTClassifier3D(pl.LightningModule):
     def __init__(
         self,
-        name: str,
+        name: Optional[str] = None,
         lr: float = 1e-3,
         image_patch_size: int = 50,
         frame_patch_size: int = 10,
@@ -289,6 +289,35 @@ class ViTClassifier3D(pl.LightningModule):
         )
         self.log_images(x, y, preds)
 
+    def test_step(self, batch, batch_idx):
+        x, age, sex, y = batch["image"], batch["age"], batch["sex"], batch["label"]
+        logits = self(x, age, sex)
+        loss = self.criterion(logits, y)
+
+        class_predictions = logits.argmax(dim=1)
+        preds = torch.zeros_like(logits)
+        preds[torch.arange(logits.shape[0]), class_predictions] = 1
+
+        self.val_conf_matrix.update(preds, y)
+
+        self.log_dict(
+            {
+                "val_loss": loss,
+            },
+        )
+        self.log_images(x, y, preds)
+
+    def on_test_end(self):
+        precision, recall, f1 = self.calculate_metrics(self.val_conf_matrix.compute())
+        self.log_conf_matrix(mode="test")
+        self.log_dict(
+            {
+                "val_precision": precision,
+                "val_recall": recall,
+                "val_f1": f1,
+            }
+        )
+
     def on_validation_epoch_end(self) -> None:
         precision, recall, f1 = self.calculate_metrics(self.val_conf_matrix.compute())
         self.log_conf_matrix(mode="val")
@@ -315,6 +344,11 @@ class ViTClassifier3D(pl.LightningModule):
         if mode == "val":
             fig = self.val_conf_matrix.plot()
             name = "Validation_Confusion_Matrix"
+            self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
+            self.val_conf_matrix.reset()
+        elif mode == "test":
+            fig = self.val_conf_matrix.plot()
+            name = "Test_Confusion_Matrix"
             self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
             self.val_conf_matrix.reset()
         else:

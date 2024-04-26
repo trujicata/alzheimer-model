@@ -31,9 +31,9 @@ class ClassificationDataModule(pl.LightningDataModule):
         self.model_name = model_name
         self.post_or_pre = post_or_pre
 
-        if model_name == "ResNet" or "AlexNet":
+        if model_name == "ResNet" or model_name == "AlexNet":
             self.dataset = ADNIDatasetCore
-        elif model_name == "RegressionResnet" or "RegressionAlexNet":
+        elif model_name == "RegressionResNet" or model_name == "RegressionAlexNet":
             self.dataset = ADNIDatasetRegression
         elif model_name == "ViT":
             self.dataset = ADNIDatasetVit

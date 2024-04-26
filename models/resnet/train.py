@@ -37,6 +37,7 @@ def train(args):
         optimizer_alg=args.optimizer_alg,
         name=model_name,
         class_weights=args.class_weights,
+        freeze=args.freeze,
     )
 
     if args.checkpoint_path is not None:
@@ -88,6 +89,7 @@ def train(args):
             model,
             datamodule=datamodule,
         )
+        trainer.test(model, datamodule=datamodule)
     except KeyboardInterrupt:
         print("Keyboard interrupt, saving config file")
         with open(config_copy_path, "w") as config_copy_file:

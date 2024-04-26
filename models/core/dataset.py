@@ -2,6 +2,7 @@ import os
 
 import boto3
 import h5py
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms as T
@@ -50,7 +51,7 @@ class ADNIDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
 
     def setup(self, stage: str):
-        files = ["train.hdf5", "test.hdf5", "holdout.hdf5"]
+        files = ["train.hdf5", "test.hdf5", "post_pet_diag.hdf5"]
         s3 = boto3.client("s3")
         for file_name in files:
             path = os.path.join(self.data_path, file_name)
@@ -59,11 +60,16 @@ class ADNIDataModule(pl.LightningDataModule):
                 with open(path, "wb") as f:
                     s3.download_fileobj("normal-h5s", file_name, f)
         train_h5_ = h5py.File(os.path.join(self.data_path, "train.hdf5"), "r")
-        val_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
-        holdout_h5_ = h5py.File(os.path.join(self.data_path, "holdout.hdf5"), "r")
+        val_1_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
+        val_2_h5_ = h5py.File(os.path.join(self.data_path, "post_pet_diag.hdf5"), "r")
 
         X_train, y_train = train_h5_["X_nii"], train_h5_["y"]
-        X_val, y_val = val_h5_["X_nii"], val_h5_["y"]
+
+        X_1_val, y_1_val = val_1_h5_["X_nii"], val_1_h5_["y"]
+        X_2_val, y_2_val = val_2_h5_["X_nii"], val_2_h5_["y"]
+
+        X_val = np.concatenate((X_1_val, X_2_val))
+        y_val = np.concatenate((y_1_val, y_2_val))
 
         # mean, std = mean_and_standard_deviation(X_train)
         train_transforms = T.Compose([T.ToTensor()])  # TODO: Add augmentation
@@ -71,6 +77,7 @@ class ADNIDataModule(pl.LightningDataModule):
 
         self.train_dataset = ADNIDataset(X_train, y_train, transform=train_transforms)
         self.val_dataset = ADNIDataset(X_val, y_val, transform=val_transforms)
+        self.test_dataset = ADNIDataset(X_2_val, y_2_val, transform=val_transforms)
 
     def train_dataloader(self):
         return DataLoader(
@@ -84,6 +91,15 @@ class ADNIDataModule(pl.LightningDataModule):
     def val_dataloader(self):
         return DataLoader(
             self.val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+            pin_memory=True,
+        )
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
