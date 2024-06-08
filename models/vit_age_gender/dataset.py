@@ -1,6 +1,7 @@
 import os
 
 import boto3
+import numpy as np
 import h5py
 import pytorch_lightning as pl
 import torch
@@ -80,7 +81,7 @@ class ADNIDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
 
     def setup(self, stage: str):
-        files = ["train.hdf5", "test.hdf5", "holdout.hdf5"]
+        files = ["train.hdf5", "test.hdf5", "post_pet_diag.hdf5"]
         s3 = boto3.client("s3")
         for file_name in files:
             path = os.path.join(self.data_path, file_name)
@@ -89,21 +90,26 @@ class ADNIDataModule(pl.LightningDataModule):
                 with open(path, "wb") as f:
                     s3.download_fileobj("normal-h5s", file_name, f)
         train_h5_ = h5py.File(os.path.join(self.data_path, "train.hdf5"), "r")
-        val_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
-        holdout_h5_ = h5py.File(os.path.join(self.data_path, "holdout.hdf5"), "r")
+        val_1_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
+        val_2_h5_ = h5py.File(os.path.join(self.data_path, "post_pet_diag.hdf5"), "r")
 
-        X_train, age_train, sex_train, y_train = (
-            train_h5_["X_nii"],
-            train_h5_["X_Age"],
-            train_h5_["X_Sex"],
-            train_h5_["y"],
+        indices = np.sort(
+            np.random.choice(val_2_h5_["X_nii"].shape[0], 50, replace=False)
         )
-        X_val, age_val, sex_val, y_val = (
-            val_h5_["X_nii"],
-            val_h5_["X_Age"],
-            val_h5_["X_Sex"],
-            val_h5_["y"],
-        )
+        X_2_train = val_2_h5_["X_nii"][indices]
+        age_2_train = val_2_h5_["X_Age"][indices]
+        sex_2_train = val_2_h5_["X_Sex"][indices]
+        y_2_train = val_2_h5_["y"][indices]
+
+        X_train = np.concatenate((train_h5_["X_nii"], X_2_train))
+        age_train = np.concatenate((train_h5_["X_Age"], age_2_train))
+        sex_train = np.concatenate((train_h5_["X_Sex"], sex_2_train))
+        y_train = np.concatenate((train_h5_["y"], y_2_train))
+
+        X_val = np.concatenate((val_1_h5_["X_nii"], val_2_h5_["X_nii"]))
+        age_val = np.concatenate((val_1_h5_["X_Age"], val_2_h5_["X_Age"]))
+        sex_val = np.concatenate((val_1_h5_["X_Sex"], val_2_h5_["X_Sex"]))
+        y_val = np.concatenate((val_1_h5_["y"], val_2_h5_["y"]))
 
         # mean, std = mean_and_standard_deviation(X_train)
         train_transforms = T.Compose([T.ToTensor()])  # TODO: Add augmentation
@@ -118,6 +124,12 @@ class ADNIDataModule(pl.LightningDataModule):
         )
         self.val_dataset = ADNIDataset(
             X=X_val, age=age_val, sex=sex_val, y=y_val, transform=val_transforms
+        )
+        self.test_dataset = ADNIDataset(
+            X=val_2_h5_["X_nii"],
+            age=val_2_h5_["X_Age"],
+            sex=val_2_h5_["X_Sex"],
+            y=val_2_h5_["y"],
         )
 
     def train_dataloader(self):

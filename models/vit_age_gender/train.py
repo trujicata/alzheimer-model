@@ -97,6 +97,7 @@ def train(args):
             model,
             datamodule=datamodule,
         )
+        trainer.test(model, datamodule=datamodule)
     except KeyboardInterrupt:
         print("Keyboard interrupt, saving config file")
         with open(config_copy_path, "w") as config_copy_file:
@@ -114,7 +115,7 @@ if __name__ == "__main__":
         metavar="config",
         type=str,
         help="Path to the YAML configuration file",
-        default="models/vit/versions/config.yaml",
+        default="models/vit_age_gender/versions/config.yaml",
     )
     args = parser.parse_args()
     args = get_args_from_yaml(args.config)

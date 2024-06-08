@@ -1,5 +1,5 @@
 import torch
-from models.eval.dataset import ClassificationDataModule
+from models.eval.dataset import ClassificationDataModule as EvaluationDataModule
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 
@@ -32,11 +32,12 @@ def main(
     elif model_name == "RegressionAlexNet":
         from models.regression_alexnet.model import Classifier3D as Model
     elif model_name == "ViT":
-        from models.vit.model import ViTClassifier3D as Model
+        from models.vanilla_vit.model import ViTClassifier3D as Model
     elif model_name == "ViTAgeGender":
-        from models.vit.model import ViTClassifier3D as Model
+        from models.vit_age_gender.model import ViTClassifier3D as Model
 
     model = Model(name=model_name)
+    model.model.eval()
 
     tensorboard_logger = TensorBoardLogger(
         f"lightning_logs/evaluation/{model_name}/{checkpoint_path.split('/')[-1]}"
@@ -50,7 +51,7 @@ def main(
             print(f"Key {k} not found in checkpoint")
 
     print("Loading data module")
-    datamodule = ClassificationDataModule(
+    datamodule = EvaluationDataModule(
         data_path=data_path,
         post_or_pre=post_or_pre,
         model_name=model_name,
@@ -68,12 +69,20 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, required=True)
-    parser.add_argument("--data-path", type=str, required=True)
-    parser.add_argument("--post-or-pre", type=str, required=True)
-    parser.add_argument("--batch-size", type=int, required=True)
-    parser.add_argument("--num-workers", type=int, required=True)
-    parser.add_argument("--checkpoint-path", type=str, required=True)
+    parser.add_argument("--model-name", type=str, default="ResNet")
+    parser.add_argument(
+        "--data-path",
+        default="data/new-norm",
+        type=str,
+    )
+    parser.add_argument("--post-or-pre", default="post", type=str)
+    parser.add_argument("--batch-size", default=16, type=int)
+    parser.add_argument("--num-workers", default=0, type=int)
+    parser.add_argument(
+        "--checkpoint-path",
+        type=str,
+        default="lightning_logs/checkpoints/resnet/resnet/resnet-epoch=16-val_loss=0.31-val_f1=0.81.ckpt",
+    )
     args = parser.parse_args()
     main(
         model_name=args.model_name,

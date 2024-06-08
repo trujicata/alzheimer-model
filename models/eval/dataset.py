@@ -9,7 +9,7 @@ import torchvision.transforms as T
 
 from models.regression_alexnet.dataset import ADNIDataset as ADNIDatasetRegression
 from models.core.dataset import ADNIDataset as ADNIDatasetCore
-from models.vit.dataset import ADNIDataset as ADNIDatasetVit
+from models.vanilla_vit.dataset import ADNIDataset as ADNIDatasetVit
 from models.vit_age_gender.dataset import ADNIDataset as ADNIDatasetVitAgeGender
 
 

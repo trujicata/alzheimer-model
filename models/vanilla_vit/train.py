@@ -9,8 +9,8 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 sys.path.append("./")
-from models.vit.dataset import ADNIDataModule
-from models.vit.model import ViTClassifier3D
+from models.vanilla_vit.dataset import ADNIDataModule
+from models.vanilla_vit.model import ViTClassifier3D
 
 
 def get_args():
@@ -97,6 +97,7 @@ def train(args):
             model,
             datamodule=datamodule,
         )
+        trainer.test(model, datamodule=datamodule)
     except KeyboardInterrupt:
         print("Keyboard interrupt, saving config file")
         with open(config_copy_path, "w") as config_copy_file:

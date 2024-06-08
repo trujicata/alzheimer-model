@@ -85,6 +85,7 @@ class Classifier3D(pl.LightningModule):
 
         self.val_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
         self.train_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
+        self.test_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
 
     def freeze_feature_extractor(self, block_number):
         for i in range(block_number):
@@ -209,7 +210,7 @@ class Classifier3D(pl.LightningModule):
             fig = self.val_conf_matrix.plot()
             name = "Test_Confusion_Matrix"
             self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
-            self.val_conf_matrix.reset()
+            self.test_conf_matrix.reset()
         else:
             fig = self.train_conf_matrix.plot()
             name = "Train_Confusion_Matrix"

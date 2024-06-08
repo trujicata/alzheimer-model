@@ -212,6 +212,7 @@ class ViTClassifier3D(pl.LightningModule):
         self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         self.val_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
         self.train_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
+        self.test_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
 
         self.model = ViT(
             image_size=100,
@@ -269,6 +270,7 @@ class ViTClassifier3D(pl.LightningModule):
         self.train_conf_matrix.update(preds, y)
 
         self.log("train_loss", loss)
+        self.log_images(x, y, preds, "Train")
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -287,7 +289,7 @@ class ViTClassifier3D(pl.LightningModule):
                 "val_loss": loss,
             },
         )
-        self.log_images(x, y, preds)
+        self.log_images(x, y, preds, "Validation")
 
     def test_step(self, batch, batch_idx):
         x, age, sex, y = batch["image"], batch["age"], batch["sex"], batch["label"]
@@ -298,23 +300,23 @@ class ViTClassifier3D(pl.LightningModule):
         preds = torch.zeros_like(logits)
         preds[torch.arange(logits.shape[0]), class_predictions] = 1
 
-        self.val_conf_matrix.update(preds, y)
+        self.test_conf_matrix.update(preds, y)
 
         self.log_dict(
             {
                 "val_loss": loss,
             },
         )
-        self.log_images(x, y, preds)
+        self.log_images(x, y, preds, "Test")
 
     def on_test_end(self):
-        precision, recall, f1 = self.calculate_metrics(self.val_conf_matrix.compute())
+        precision, recall, f1 = self.calculate_metrics(self.test_conf_matrix.compute())
         self.log_conf_matrix(mode="test")
         self.log_dict(
             {
-                "val_precision": precision,
-                "val_recall": recall,
-                "val_f1": f1,
+                "test_precision": precision,
+                "test_recall": recall,
+                "test_f1": f1,
             }
         )
 
@@ -358,7 +360,7 @@ class ViTClassifier3D(pl.LightningModule):
             self.train_conf_matrix.reset()
         plt.close()
 
-    def log_images(self, images, labels, preds):
+    def log_images(self, images, labels, preds, mode: str):
         random_index = np.random.randint(0, len(images))
         image = images[random_index]
         label = self.classes[labels[random_index].argmax().item()]
@@ -374,7 +376,7 @@ class ViTClassifier3D(pl.LightningModule):
         ax2.set_title(f"Label: {label}, Pred: {pred}")
 
         self.logger.experiment.add_figure(
-            "Random_Slices",
+            f"Random_Slices_{mode}",
             fig,
             self.current_epoch,
         )
