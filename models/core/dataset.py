@@ -63,13 +63,17 @@ class ADNIDataModule(pl.LightningDataModule):
         val_1_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
         val_2_h5_ = h5py.File(os.path.join(self.data_path, "post_pet_diag.hdf5"), "r")
 
-        X_train, y_train = train_h5_["X_nii"], train_h5_["y"]
+        # Get 50 different random samples from val_2_h5_ and add them to the train set
 
-        X_1_val, y_1_val = val_1_h5_["X_nii"], val_1_h5_["y"]
-        X_2_val, y_2_val = val_2_h5_["X_nii"], val_2_h5_["y"]
+        indices = np.sort(
+            np.random.choice(val_2_h5_["X_nii"].shape[0], 50, replace=False)
+        )
+        X_2_test, y_2_test = val_2_h5_["X_nii"][indices], val_2_h5_["y"][indices]
+        X_train = np.concatenate((train_h5_["X_nii"], X_2_test))
+        y_train = np.concatenate((train_h5_["y"], y_2_test))
 
-        X_val = np.concatenate((X_1_val, X_2_val))
-        y_val = np.concatenate((y_1_val, y_2_val))
+        X_val = np.concatenate((val_1_h5_["X_nii"], val_2_h5_["X_nii"]))
+        y_val = np.concatenate((val_1_h5_["y"], val_2_h5_["y"]))
 
         # mean, std = mean_and_standard_deviation(X_train)
         train_transforms = T.Compose([T.ToTensor()])  # TODO: Add augmentation
@@ -77,7 +81,7 @@ class ADNIDataModule(pl.LightningDataModule):
 
         self.train_dataset = ADNIDataset(X_train, y_train, transform=train_transforms)
         self.val_dataset = ADNIDataset(X_val, y_val, transform=val_transforms)
-        self.test_dataset = ADNIDataset(X_2_val, y_2_val, transform=val_transforms)
+        self.test_dataset = ADNIDataset(X_2_test, y_2_test, transform=val_transforms)
 
     def train_dataloader(self):
         return DataLoader(

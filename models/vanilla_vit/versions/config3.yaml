@@ -1,10 +1,10 @@
 batch_size: 64
 checkpoint_path: null
-class_weights: [0.87, 0.3, 0.7]
+class_weights: [0.87,0.3,0.7]
 data_path: data/original
 dropout: 0.01
 lr: 1e-5
-max_epochs: 75
+max_epochs: 20
 model_name: vit-vanilla
 num_workers: 8
 optimizer_alg: adam
@@ -21,4 +21,4 @@ dim_head: 64
 mlp_dim: 2048
 pool: cls
 emb_dropout: 0.02
-detail: more depth
+detail: same as vanilla but with more depth, new data

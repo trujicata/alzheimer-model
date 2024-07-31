@@ -63,17 +63,21 @@ class ADNIDataModule(pl.LightningDataModule):
                 print("Downloadin the data from s3")
                 with open(path, "wb") as f:
                     s3.download_fileobj("normal-h5s", file_name, f)
-        train_1_h5_ = h5py.File(os.path.join(self.data_path, "train.hdf5"), "r")
-        train_2_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
-        val_h5_ = h5py.File(os.path.join(self.data_path, "post_pet_diag.hdf5"), "r")
+        train_h5_ = h5py.File(os.path.join(self.data_path, "train.hdf5"), "r")
+        val_1_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
+        val_2_h5_ = h5py.File(os.path.join(self.data_path, "post_pet_diag.hdf5"), "r")
 
-        X_1_train, y_1_train = train_1_h5_["X_nii"], train_1_h5_["y"]
-        X_2_train, y_2_train = train_2_h5_["X_nii"], train_2_h5_["y"]
+        # Get 50 different random samples from val_2_h5_ and add them to the train set
 
-        X_train = np.concatenate((X_1_train, X_2_train))
-        y_train = np.concatenate((y_1_train, y_2_train))
+        indices = np.sort(
+            np.random.choice(val_2_h5_["X_nii"].shape[0], 50, replace=False)
+        )
+        X_2_test, y_2_test = val_2_h5_["X_nii"][indices], val_2_h5_["y"][indices]
+        X_train = np.concatenate((train_h5_["X_nii"], X_2_test))
+        y_train = np.concatenate((train_h5_["y"], y_2_test))
 
-        X_val, y_val = val_h5_["X_nii"], val_h5_["y"]
+        X_val = np.concatenate((val_1_h5_["X_nii"], val_2_h5_["X_nii"]))
+        y_val = np.concatenate((val_1_h5_["y"], val_2_h5_["y"]))
         # mean, std = mean_and_standard_deviation(X_train)
         train_transforms = T.Compose([T.ToTensor()])  # TODO: Add augmentation
         val_transforms = T.Compose([T.ToTensor()])  # TODO: More transforms?
@@ -84,6 +88,9 @@ class ADNIDataModule(pl.LightningDataModule):
             transform=train_transforms,
         )
         self.val_dataset = ADNIDataset(X=X_val, y=y_val, transform=val_transforms)
+        self.test_dataset = ADNIDataset(
+            X=val_2_h5_["X_nii"], y=val_2_h5_["y"], transform=val_transforms
+        )
 
     def train_dataloader(self):
         return DataLoader(
@@ -97,6 +104,15 @@ class ADNIDataModule(pl.LightningDataModule):
     def val_dataloader(self):
         return DataLoader(
             self.val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+            pin_memory=True,
+        )
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
