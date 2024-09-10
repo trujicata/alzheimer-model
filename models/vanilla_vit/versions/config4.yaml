@@ -1,26 +1,26 @@
 batch_size: 64
 checkpoint_path: null
-class_weights: [0.87,0.3,0.72]
+class_weights: [0.87,0.3,0.7]
 data_path: data/original
-dropout: 0.01
-lr: 7e-6
-max_epochs: 75
-model_name: vit-age-gender
+dropout: 0.001
+lr: 1e-3
+max_epochs: 100
+model_name: vit-vanilla
 num_workers: 8
-optimizer_alg: lion
+optimizer_alg: adam
 precision: high
 scheduler_gamma: 0.7
 scheduler_step_size: 30
-weight_decay: 0
+weight_decay: 0.01
 image_patch_size: 25
 frame_patch_size: 10
 dim: 1024
-depth: 6
+depth: 8
 heads: 16
-dim_head: 128
+dim_head: 64
 mlp_dim: 2048
 pool: cls
 emb_dropout: 0.02
-detail: dim head + class weights + lion
+detail: same as vanilla but with more depth, new data
 include_cudim: False
-processing: P01
+processing: P04

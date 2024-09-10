@@ -72,46 +72,83 @@ class ADNIDataModule(pl.LightningDataModule):
     def __init__(
         self,
         data_path: str,
+        processing: str,
         batch_size: int = 32,
         num_workers: int = 4,
+        include_cudim: bool = False,
     ):
         super().__init__()
-        self.data_path = data_path
+        self.data_path = os.path.join(data_path, processing)
+        self.processing = processing
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.include_cudim = include_cudim
 
     def setup(self, stage: str):
-        files = ["train.hdf5", "test.hdf5", "post_pet_diag.hdf5"]
+        files = [
+            "train_csv.hdf5",
+            "test_csv.hdf5",
+            "pre_pet_diag.hdf5",
+            "description.txt",
+        ]
         s3 = boto3.client("s3")
+
+        if not os.path.exists(self.data_path):
+            os.makedirs(self.data_path)
+
         for file_name in files:
             path = os.path.join(self.data_path, file_name)
             if not os.path.exists(path):
-                print("Downloadin the data from s3")
+                print("Downloading the data from s3")
+                key = f"{self.processing}/{file_name}"
                 with open(path, "wb") as f:
-                    s3.download_fileobj("normal-h5s", file_name, f)
-        train_h5_ = h5py.File(os.path.join(self.data_path, "train.hdf5"), "r")
-        val_1_h5_ = h5py.File(os.path.join(self.data_path, "test.hdf5"), "r")
-        val_2_h5_ = h5py.File(os.path.join(self.data_path, "post_pet_diag.hdf5"), "r")
+                    s3.download_fileobj("brainers-preprocessed", key, f)
 
-        indices = np.sort(
-            np.random.choice(val_2_h5_["X_nii"].shape[0], 50, replace=False)
+        train_h5_ = h5py.File(os.path.join(self.data_path, files[0]), "r")
+        val_1_h5_ = h5py.File(os.path.join(self.data_path, files[1]), "r")
+        val_2_h5_ = h5py.File(os.path.join(self.data_path, files[2]), "r")
+
+        X_train, age_train, sex_train, y_train = (
+            train_h5_["X_nii"],
+            train_h5_["X_Age"],
+            train_h5_["X_Sex"],
+            train_h5_["y"],
         )
-        X_2_train = val_2_h5_["X_nii"][indices]
-        age_2_train = val_2_h5_["X_Age"][indices]
-        sex_2_train = val_2_h5_["X_Sex"][indices]
-        y_2_train = val_2_h5_["y"][indices]
 
-        X_train = np.concatenate((train_h5_["X_nii"], X_2_train))
-        age_train = np.concatenate((train_h5_["X_Age"], age_2_train))
-        sex_train = np.concatenate((train_h5_["X_Sex"], sex_2_train))
-        y_train = np.concatenate((train_h5_["y"], y_2_train))
+        X_val, age_val, sex_val, y_val = (
+            val_1_h5_["X_nii"],
+            val_1_h5_["X_Age"],
+            val_1_h5_["X_Sex"],
+            val_1_h5_["y"],
+        )
 
-        X_val = np.concatenate((val_1_h5_["X_nii"], val_2_h5_["X_nii"]))
-        age_val = np.concatenate((val_1_h5_["X_Age"], val_2_h5_["X_Age"]))
-        sex_val = np.concatenate((val_1_h5_["X_Sex"], val_2_h5_["X_Sex"]))
-        y_val = np.concatenate((val_1_h5_["y"], val_2_h5_["y"]))
+        X_test, age_test, sex_test, y_test = (
+            val_2_h5_["X_nii"],
+            val_2_h5_["X_Age"],
+            val_2_h5_["X_Sex"],
+            val_2_h5_["y"],
+        )
 
-        # mean, std = mean_and_standard_deviation(X_train)
+        if self.include_cudim:
+            indices = np.sort(
+                np.random.choice(val_2_h5_["X_nii"].shape[0], 50, replace=False)
+            )
+            X_add, age_add, sex_add, y_add = (
+                val_2_h5_["X_nii"][indices],
+                val_2_h5_["X_Age"][indices],
+                val_2_h5_["X_Sex"][indices],
+                val_2_h5_["y"][indices],
+            )
+            X_train = np.concatenate((X_train, X_add))
+            age_train = np.concatenate((age_train, age_add))
+            sex_train = np.concatenate((sex_train, sex_add))
+            y_train = np.concatenate((y_train, y_add))
+
+            X_val = np.concatenate((X_val, X_test))
+            age_val = np.concatenate((age_val, age_test))
+            sex_val = np.concatenate((sex_val, sex_test))
+            y_val = np.concatenate((y_val, y_test))
+
         train_transforms = T.Compose([T.ToTensor()])  # TODO: Add augmentation
         val_transforms = T.Compose([T.ToTensor()])  # TODO: More transforms?
 
@@ -126,10 +163,11 @@ class ADNIDataModule(pl.LightningDataModule):
             X=X_val, age=age_val, sex=sex_val, y=y_val, transform=val_transforms
         )
         self.test_dataset = ADNIDataset(
-            X=val_2_h5_["X_nii"],
-            age=val_2_h5_["X_Age"],
-            sex=val_2_h5_["X_Sex"],
-            y=val_2_h5_["y"],
+            X=X_test,
+            age=age_test,
+            sex=sex_test,
+            y=y_test,
+            transform=val_transforms,
         )
 
     def train_dataloader(self):
@@ -148,15 +186,4 @@ class ADNIDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             shuffle=False,
             pin_memory=True,
-        )
-
-    def check_balance(self, dataset: Dataset) -> None:
-        labels = []
-        for i in range(len(dataset)):
-            sample = dataset[i]
-            labels.append(torch.argmax(sample["label"]))
-        labels = torch.stack(labels)
-        print("Label counts: ", torch.unique(labels, return_counts=True))
-        print(
-            "Label counts: ", torch.unique(labels, return_counts=True)[1] / len(labels)
         )

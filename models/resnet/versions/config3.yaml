@@ -2,7 +2,7 @@ batch_size: 64
 checkpoint_path: null
 class_weights: [0.87, 0.3, 0.7]
 data_path: data
-processing: P01
+processing: P03
 model_depth: 18
 lr: 1e-3
 max_epochs: 100

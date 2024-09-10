@@ -23,4 +23,4 @@ pool: cls
 emb_dropout: 0.02
 detail: dim head + class weights + lion
 include_cudim: False
-processing: P01
+processing: P05

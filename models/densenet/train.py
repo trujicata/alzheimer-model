@@ -9,8 +9,8 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 sys.path.append("./")
-from models.vanilla_vit.dataset import ADNIDataModule
-from models.vanilla_vit.model import ViTClassifier3D
+from models.densenet.dataset import ADNIDataModule
+from models.densenet.model import Classifier3D
 
 
 def get_args():
@@ -30,22 +30,15 @@ def train(args):
     torch.manual_seed(42)
 
     print("Loading models")
-    model = ViTClassifier3D(
-        name=args.model_name,
+    model = Classifier3D(
         lr=float(args.lr),
-        image_patch_size=args.image_patch_size,
-        frame_patch_size=args.frame_patch_size,
-        dim=args.dim,
-        depth=args.depth,
-        heads=args.heads,
-        mlp_dim=args.mlp_dim,
-        pool=args.pool,
-        dropout=float(args.dropout),
-        emb_dropout=float(args.emb_dropout),
-        class_weights=args.class_weights,
-        weight_decay=float(args.weight_decay),
         scheduler_step_size=args.scheduler_step_size,
         scheduler_gamma=args.scheduler_gamma,
+        weight_decay=float(args.weight_decay),
+        optimizer_alg=args.optimizer_alg,
+        freeze_backbone=args.freeze_backbone,
+        name=model_name,
+        class_weights=args.class_weights,
     )
 
     if args.checkpoint_path is not None:
@@ -55,17 +48,17 @@ def train(args):
     print("Loading data module")
     datamodule = ADNIDataModule(
         data_path=args.data_path,
+        processing=args.processing,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         include_cudim=args.include_cudim,
-        processing=args.processing,
     )
 
     # Callbacks
     print("Defining callbacks")
     checkpoint_callback = ModelCheckpoint(
         dirpath=f"lightning_logs/checkpoints/{model_name}",
-        filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_recall:.2f}}",
+        filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_f1:.2f}}-{{val_recall:.2f}}",
         monitor="val_recall",
         mode="max",
         save_top_k=3,
@@ -73,9 +66,7 @@ def train(args):
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
     # Instantiate the TensorBoard logger
-    tensorboard_logger = TensorBoardLogger(
-        "lightning_logs/classifier/vit", name=model_name
-    )
+    tensorboard_logger = TensorBoardLogger("lightning_logs/classifier", name=model_name)
 
     config_copy_path = os.path.join(tensorboard_logger.log_dir, "config.yaml")
 
@@ -99,7 +90,6 @@ def train(args):
             model,
             datamodule=datamodule,
         )
-        trainer.test(model, datamodule=datamodule)
     except KeyboardInterrupt:
         print("Keyboard interrupt, saving config file")
         with open(config_copy_path, "w") as config_copy_file:
@@ -117,7 +107,7 @@ if __name__ == "__main__":
         metavar="config",
         type=str,
         help="Path to the YAML configuration file",
-        default="models/vanilla_vit/versions/config.yaml",
+        default="models/densenet/versions/config.yaml",
     )
     args = parser.parse_args()
     args = get_args_from_yaml(args.config)

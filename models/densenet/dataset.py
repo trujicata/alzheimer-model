@@ -1,11 +1,14 @@
 import os
-import numpy as np
+
 import boto3
 import h5py
+
+# import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms as T
 from torch.utils.data import DataLoader, Dataset
+import numpy as np
 
 
 class ADNIDataset(Dataset):
@@ -18,7 +21,6 @@ class ADNIDataset(Dataset):
     ):
         self.X = X
         self.y = y
-
         self.transform = transform
         self.num_classes = num_classes
 
@@ -26,9 +28,9 @@ class ADNIDataset(Dataset):
         return len(self.X)
 
     def __getitem__(self, idx):
-
         image = self.X[idx]
-
+        # Get the 96, 96, 96 image
+        image = image[10:106, 10:106, 10:106]
         label_id = int(self.y[idx])
         label = torch.zeros(self.num_classes)
         label[label_id] = 1
@@ -36,14 +38,12 @@ class ADNIDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        sample = {
-            "image": image.unsqueeze(0),
-            "label": label,
-        }
+        sample = {"image": image.unsqueeze(0), "label": label}
         return sample
 
 
 class ADNIDataModule(pl.LightningDataModule):
+
     def __init__(
         self,
         data_path: str,
@@ -124,9 +124,20 @@ class ADNIDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(
-            self.test_dataset,
+            self.val_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
             pin_memory=True,
+        )
+
+    def check_balance(self, dataset: Dataset) -> None:
+        labels = []
+        for i in range(len(dataset)):
+            sample = dataset[i]
+            labels.append(torch.argmax(sample["label"]))
+        labels = torch.stack(labels)
+        print("Label counts: ", torch.unique(labels, return_counts=True))
+        print(
+            "Label counts: ", torch.unique(labels, return_counts=True)[1] / len(labels)
         )

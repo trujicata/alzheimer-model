@@ -57,14 +57,16 @@ def train(args):
         data_path=args.data_path,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
+        include_cudim=args.include_cudim,
+        processing=args.processing,
     )
 
     # Callbacks
     print("Defining callbacks")
     checkpoint_callback = ModelCheckpoint(
         dirpath=f"lightning_logs/checkpoints/{model_name}",
-        filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_f1:.2f}}",
-        monitor="val_f1",
+        filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_recall:.2f}}",
+        monitor="val_recall",
         mode="max",
         save_top_k=3,
     )

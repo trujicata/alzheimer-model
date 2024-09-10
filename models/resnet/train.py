@@ -47,16 +47,18 @@ def train(args):
     print("Loading data module")
     datamodule = ADNIDataModule(
         data_path=args.data_path,
+        processing=args.processing,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
+        include_cudim=args.include_cudim,
     )
 
     # Callbacks
     print("Defining callbacks")
     checkpoint_callback = ModelCheckpoint(
         dirpath=f"lightning_logs/checkpoints/resnet/{model_name}",
-        filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_f1:.2f}}",
-        monitor="val_f1",
+        filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_recall:.2f}}",
+        monitor="val_recall",
         mode="max",
         save_top_k=3,
     )
@@ -64,7 +66,7 @@ def train(args):
 
     # Instantiate the TensorBoard logger
     tensorboard_logger = TensorBoardLogger(
-        "lightning_logs/classifier/resnet", name=model_name
+        "lightning_logs/classifier/", name=model_name
     )
 
     config_copy_path = os.path.join(tensorboard_logger.log_dir, "config.yaml")

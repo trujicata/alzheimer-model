@@ -1,17 +1,16 @@
-batch_size: 64
+batch_size: 256
 checkpoint_path: null
 class_weights: [0.87, 0.3, 0.7]
 data_path: data
-processing: P01
-model_depth: 18
+processing: P06
+freeze_backbone: True
 lr: 1e-3
-max_epochs: 100
-model_name: resnet
+max_epochs: 70
+model_name: densenet
 num_workers: 8
-optimizer_alg: adam
+optimizer_alg: lion
 precision: high
 scheduler_gamma: 0.5
-scheduler_step_size: 20
+scheduler_step_size: 30
 weight_decay: 0.0005
-freeze: null
 include_cudim: False
