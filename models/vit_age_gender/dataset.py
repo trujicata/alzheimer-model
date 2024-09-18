@@ -104,40 +104,39 @@ class ADNIDataModule(pl.LightningDataModule):
                 with open(path, "wb") as f:
                     s3.download_fileobj("brainers-preprocessed", key, f)
 
-        train_h5_ = h5py.File(os.path.join(self.data_path, files[0]), "r")
         val_1_h5_ = h5py.File(os.path.join(self.data_path, files[1]), "r")
         val_2_h5_ = h5py.File(os.path.join(self.data_path, files[2]), "r")
 
-        X_train, age_train, sex_train, y_train = (
-            train_h5_["X_nii"],
-            train_h5_["X_Age"],
-            train_h5_["X_Sex"],
-            train_h5_["y"],
-        )
+        with h5py.File(os.path.join(self.data_path, files[0]), "r") as train_h5_:
+            X_train, age_train, sex_train, y_train = (
+                train_h5_["X_nii"],
+                train_h5_["X_Age"],
+                train_h5_["X_Sex"],
+                train_h5_["y"],
+            )
+        with h5py.File(os.path.join(self.data_path, files[1]), "r") as val_1_h5_:
+            X_val, age_val, sex_val, y_val = (
+                val_1_h5_["X_nii"],
+                val_1_h5_["X_Age"],
+                val_1_h5_["X_Sex"],
+                val_1_h5_["y"],
+            )
 
-        X_val, age_val, sex_val, y_val = (
-            val_1_h5_["X_nii"],
-            val_1_h5_["X_Age"],
-            val_1_h5_["X_Sex"],
-            val_1_h5_["y"],
-        )
-
-        X_test, age_test, sex_test, y_test = (
-            val_2_h5_["X_nii"],
-            val_2_h5_["X_Age"],
-            val_2_h5_["X_Sex"],
-            val_2_h5_["y"],
-        )
+        with h5py.File(os.path.join(self.data_path, files[2]), "r") as val_2_h5_:
+            X_test, age_test, sex_test, y_test = (
+                val_2_h5_["X_nii"],
+                val_2_h5_["X_Age"],
+                val_2_h5_["X_Sex"],
+                val_2_h5_["y"],
+            )
 
         if self.include_cudim:
-            indices = np.sort(
-                np.random.choice(val_2_h5_["X_nii"].shape[0], 50, replace=False)
-            )
+            indices = np.sort(np.random.choice(X_test.shape[0], 50, replace=False))
             X_add, age_add, sex_add, y_add = (
-                val_2_h5_["X_nii"][indices],
-                val_2_h5_["X_Age"][indices],
-                val_2_h5_["X_Sex"][indices],
-                val_2_h5_["y"][indices],
+                X_test[indices],
+                age_test[indices],
+                sex_test[indices],
+                y_test[indices],
             )
             X_train = np.concatenate((X_train, X_add))
             age_train = np.concatenate((age_train, age_add))

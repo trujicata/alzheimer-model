@@ -78,24 +78,24 @@ class ADNIDataModule(pl.LightningDataModule):
                 key = f"{self.processing}/{file_name}"
                 with open(path, "wb") as f:
                     s3.download_fileobj("brainers-preprocessed", key, f)
-        train_h5_ = h5py.File(os.path.join(self.data_path, files[0]), "r")
-        val_1_h5_ = h5py.File(os.path.join(self.data_path, files[1]), "r")
-        val_2_h5_ = h5py.File(os.path.join(self.data_path, files[2]), "r")
 
-        X_train, y_train = train_h5_["X_nii"], train_h5_["y"]
-        X_val, y_val = val_1_h5_["X_nii"], val_1_h5_["y"]
-        X_test, y_test = val_2_h5_["X_nii"], val_2_h5_["y"]
+        with h5py.File(os.path.join(self.data_path, files[0]), "r") as train_h5_:
+            X_train, y_train = train_h5_["X_nii"], train_h5_["y"]
+
+        with h5py.File(os.path.join(self.data_path, files[1]), "r") as val_1_h5_:
+            X_val, y_val = val_1_h5_["X_nii"], val_1_h5_["y"]
+
+        with h5py.File(os.path.join(self.data_path, files[2]), "r") as val_2_h5_:
+            X_test, y_test = val_2_h5_["X_nii"], val_2_h5_["y"]
 
         if self.include_cudim:
-            indices = np.sort(
-                np.random.choice(val_2_h5_["X_nii"].shape[0], 50, replace=False)
-            )
-            X_add, y_add = val_2_h5_["X_nii"][indices], val_2_h5_["y"][indices]
-            X_train = np.concatenate((train_h5_["X_nii"], X_add))
-            y_train = np.concatenate((train_h5_["y"], y_add))
+            indices = np.sort(np.random.choice(X_test.shape[0], 50, replace=False))
+            X_add, y_add = X_test[indices], y_test[indices]
+            X_train = np.concatenate((X_train, X_add))
+            y_train = np.concatenate((y_train, y_add))
 
-            X_val = np.concatenate((val_1_h5_["X_nii"], val_2_h5_["X_nii"]))
-            y_val = np.concatenate((val_1_h5_["y"], val_2_h5_["y"]))
+            X_val = np.concatenate((X_val, X_test))
+            y_val = np.concatenate((y_val, y_test))
 
         train_transforms = T.Compose([T.ToTensor()])  # TODO: Add augmentation
         val_transforms = T.Compose([T.ToTensor()])  # TODO: More transforms?
