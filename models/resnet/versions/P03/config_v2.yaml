@@ -1,0 +1,17 @@
+batch_size: 64
+checkpoint_path: lightning_logs/checkpoints/resnet/resnet/resnet-P03-epoch=50-val_loss=0.61-val_recall=0.66.ckpt
+class_weights: [0.87, 0.3, 0.7]
+data_path: data
+processing: P02
+model_depth: 18
+lr: 2e-4
+max_epochs: 20
+model_name: resnet-P03-prune
+num_workers: 8
+optimizer_alg: adam
+precision: high
+scheduler_gamma: 0.5
+scheduler_step_size: 5
+weight_decay: 0.0005
+freeze: null
+include_cudim: False

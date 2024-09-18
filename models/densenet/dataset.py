@@ -130,14 +130,3 @@ class ADNIDataModule(pl.LightningDataModule):
             shuffle=False,
             pin_memory=True,
         )
-
-    def check_balance(self, dataset: Dataset) -> None:
-        labels = []
-        for i in range(len(dataset)):
-            sample = dataset[i]
-            labels.append(torch.argmax(sample["label"]))
-        labels = torch.stack(labels)
-        print("Label counts: ", torch.unique(labels, return_counts=True))
-        print(
-            "Label counts: ", torch.unique(labels, return_counts=True)[1] / len(labels)
-        )

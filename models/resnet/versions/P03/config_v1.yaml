@@ -1,12 +1,12 @@
 batch_size: 64
 checkpoint_path: null
-class_weights: [0.82, 0.3, 0.72]
+class_weights: [0.87, 0.3, 0.7]
 data_path: data
-processing: P01
+processing: P02
 model_depth: 18
 lr: 1e-3
 max_epochs: 100
-model_name: resnet
+model_name: resnet-P03-prune
 num_workers: 8
 optimizer_alg: adam
 precision: high
@@ -14,4 +14,4 @@ scheduler_gamma: 0.5
 scheduler_step_size: 20
 weight_decay: 0.0005
 freeze: null
-include_cudim: True
+include_cudim: False

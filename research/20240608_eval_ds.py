@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # %%
-data_path = "data/original"
+data_path = "data/P01"
 train_files = h5py.File(f"{data_path}/train.hdf5", "r")
 val_files = h5py.File(f"{data_path}/test.hdf5", "r")
 test_files = h5py.File(f"{data_path}/post_pet_diag.hdf5", "r")

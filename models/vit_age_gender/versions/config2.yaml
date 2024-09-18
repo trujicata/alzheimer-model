@@ -1,10 +1,10 @@
 batch_size: 64
-checkpoint_path: null
+checkpoint_path: lightning_logs/checkpoints/vit-age-gender/vit-age-gender-P02-epoch=12-val_loss=0.53-val_recall=0.40.ckpt
 class_weights: [0.87,0.3,0.72]
-data_path: data/original
+data_path: data
 dropout: 0.01
-lr: 7e-6
-max_epochs: 75
+lr: 8e-6
+max_epochs: 100
 model_name: vit-age-gender
 num_workers: 8
 optimizer_alg: lion
@@ -20,7 +20,7 @@ heads: 16
 dim_head: 128
 mlp_dim: 2048
 pool: cls
-emb_dropout: 0.02
+emb_dropout: 0
 detail: dim head + class weights + lion
 include_cudim: False
 processing: P02

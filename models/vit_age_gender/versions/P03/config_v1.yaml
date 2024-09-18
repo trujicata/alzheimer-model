@@ -1,13 +1,13 @@
 batch_size: 64
-checkpoint_path: lightning_logs/checkpoints/vit-age-gender/vit-age-gender-P04-epoch=91-val_loss=0.40-val_recall=0.71.ckpt
+checkpoint_path: null
 class_weights: [0.87,0.3,0.72]
 data_path: data
-dropout: 0.01
+dropout: 0
 lr: 8e-6
 max_epochs: 100
-model_name: vit-age-gender
+model_name: vit-age-gender-P03-prune
 num_workers: 8
-optimizer_alg: lion
+optimizer_alg: adam
 precision: high
 scheduler_gamma: 0.7
 scheduler_step_size: 30
@@ -21,6 +21,6 @@ dim_head: 128
 mlp_dim: 2048
 pool: cls
 emb_dropout: 0
-detail: dim head + class weights + lion
+detail: basic
 include_cudim: False
-processing: P04
+processing: P03

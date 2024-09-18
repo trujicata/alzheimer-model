@@ -1,0 +1,17 @@
+batch_size: 64
+checkpoint_path: lightning_logs/checkpoints/resnet/resnet/resnet-P01-epoch=48-val_loss=0.48-val_recall=0.76.ckpt
+class_weights: [0.87, 0.3, 0.7]
+data_path: data
+processing: P01
+model_depth: 18
+lr: 2e-4
+max_epochs: 15
+model_name: resnet-P01-prune
+num_workers: 8
+optimizer_alg: adam
+precision: high
+scheduler_gamma: 0.5
+scheduler_step_size: 5
+weight_decay: 0.0005
+freeze: null
+include_cudim: False

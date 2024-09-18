@@ -469,7 +469,7 @@ class CCT(nn.Module):
 cct_model = CCT(
     img_size=100,
     num_frames=120,
-    embedding_dim=768,
+    embedding_dim=516,
     n_input_channels=1,
     n_conv_layers=1,
     frame_stride=1,
@@ -483,12 +483,14 @@ cct_model = CCT(
     pooling_stride=2,
     pooling_padding=1,
     num_classes=3,
-    positional_embedding="learnable",
+    positional_embedding="sine",
 )
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+cct_model.to(device)
 # %%
-image = torch.randn(1, 1, 120, 100, 100)
-
+image = torch.randn(1, 1, 120, 100, 100, device=device)
+image.device
+# %%
 with torch.no_grad():
     out = cct_model(image)
 out.shape

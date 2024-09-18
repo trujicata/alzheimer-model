@@ -1,11 +1,11 @@
 batch_size: 256
 checkpoint_path: null
-class_weights: [0.87, 0.3, 0.7]
+class_weights: [0.82, 0.3, 0.72]
 data_path: data
 processing: P01
 freeze_backbone: True
 lr: 1e-3
-max_epochs: 70
+max_epochs: 100
 model_name: densenet
 num_workers: 8
 optimizer_alg: lion
@@ -13,4 +13,5 @@ precision: high
 scheduler_gamma: 0.5
 scheduler_step_size: 30
 weight_decay: 0.0005
-include_cudim: False
+include_cudim: True
+pretrained_backbone: False

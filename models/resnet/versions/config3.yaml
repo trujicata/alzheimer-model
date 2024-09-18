@@ -1,6 +1,6 @@
 batch_size: 64
 checkpoint_path: null
-class_weights: [0.87, 0.3, 0.7]
+class_weights: [0.82, 0.3, 0.72]
 data_path: data
 processing: P03
 model_depth: 18
@@ -14,4 +14,4 @@ scheduler_gamma: 0.5
 scheduler_step_size: 20
 weight_decay: 0.0005
 freeze: null
-include_cudim: False
+include_cudim: True

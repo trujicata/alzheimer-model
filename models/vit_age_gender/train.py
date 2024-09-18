@@ -46,6 +46,7 @@ def train(args):
         weight_decay=float(args.weight_decay),
         scheduler_step_size=args.scheduler_step_size,
         scheduler_gamma=args.scheduler_gamma,
+        optimizer_alg=args.optimizer_alg,
     )
 
     if args.checkpoint_path is not None:
@@ -65,7 +66,7 @@ def train(args):
     print("Defining callbacks")
     checkpoint_callback = ModelCheckpoint(
         dirpath=f"lightning_logs/checkpoints/{model_name}",
-        filename=f"{model_name}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_recall:.2f}}",
+        filename=f"{model_name}-{args.processing}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_recall:.2f}}",
         monitor="val_recall",
         mode="max",
         save_top_k=3,
@@ -99,7 +100,7 @@ def train(args):
             model,
             datamodule=datamodule,
         )
-        trainer.test(model, datamodule=datamodule)
+        trainer.test(model, datamodule=datamodule, ckpt_path="best")
     except KeyboardInterrupt:
         print("Keyboard interrupt, saving config file")
         with open(config_copy_path, "w") as config_copy_file:

@@ -276,6 +276,7 @@ class Classifier3D(pl.LightningModule):
 
         self.val_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
         self.train_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
+        self.test_conf_matrix = ConfusionMatrixPloter(classes=self.classes)
 
     def forward(self, x):
         x = self.model(x)
@@ -344,7 +345,7 @@ class Classifier3D(pl.LightningModule):
         preds = torch.zeros_like(logits)
         preds[torch.arange(logits.shape[0]), class_predictions] = 1
 
-        self.val_conf_matrix.update(preds, y)
+        self.test_conf_matrix.update(preds, y)
 
         self.log_dict(
             {
@@ -354,7 +355,7 @@ class Classifier3D(pl.LightningModule):
         self.log_images(x, y, preds)
 
     def on_test_epoch_end(self):
-        precision, recall, f1 = self.calculate_metrics(self.val_conf_matrix.compute())
+        precision, recall, f1 = self.calculate_metrics(self.test_conf_matrix.compute())
         self.log_conf_matrix(mode="test")
         self.log_dict(
             {
@@ -393,10 +394,10 @@ class Classifier3D(pl.LightningModule):
             self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
             self.val_conf_matrix.reset()
         elif mode == "test":
-            fig = self.val_conf_matrix.plot()
+            fig = self.test_conf_matrix.plot()
             name = "Test_Confusion_Matrix"
             self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
-            self.val_conf_matrix.reset()
+            self.test_conf_matrix.reset()
         else:
             fig = self.train_conf_matrix.plot()
             name = "Train_Confusion_Matrix"

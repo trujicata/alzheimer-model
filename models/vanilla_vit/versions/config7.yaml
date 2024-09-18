@@ -1,17 +1,17 @@
 batch_size: 64
 checkpoint_path: null
 class_weights: [0.87,0.3,0.7]
-data_path: data/original
-dropout: 0.001
-lr: 1e-3
+data_path: data
+dropout: 0
+lr: 8e-6
 max_epochs: 100
 model_name: vit-vanilla
 num_workers: 8
-optimizer_alg: adam
+optimizer_alg: lion
 precision: high
 scheduler_gamma: 0.7
 scheduler_step_size: 30
-weight_decay: 0.01
+weight_decay: 0.00
 image_patch_size: 25
 frame_patch_size: 10
 dim: 1024
@@ -20,7 +20,7 @@ heads: 16
 dim_head: 64
 mlp_dim: 2048
 pool: cls
-emb_dropout: 0.02
-detail: same as vanilla but with more depth, new data
+emb_dropout: 0
+detail: same as vanilla but with more depth
 include_cudim: False
 processing: P07

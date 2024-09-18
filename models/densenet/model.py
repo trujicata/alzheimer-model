@@ -13,7 +13,6 @@ class Classifier3D(pl.LightningModule):
 
     def __init__(
         self,
-        checkpoint_path: str = "data/model3.pth",
         lr: float = 0.001,
         scheduler_gamma: Optional[float] = 0.1,
         scheduler_step_size: Optional[int] = 25,
@@ -22,6 +21,7 @@ class Classifier3D(pl.LightningModule):
         class_weights: Optional[list] = None,
         name: Optional[str] = None,
         freeze_backbone: bool = False,
+        pretrained_backbone: bool = True,
     ):
         super().__init__()
         self.name = name
@@ -40,8 +40,9 @@ class Classifier3D(pl.LightningModule):
         self.model = monai.networks.nets.DenseNet121(
             spatial_dims=3, in_channels=1, out_channels=3
         )
-        checkpoint = torch.load(checkpoint_path)
-        self.model.load_state_dict(checkpoint)
+        if pretrained_backbone:
+            checkpoint = torch.load("data/model3.pth")
+            self.model.load_state_dict(checkpoint)
         if freeze_backbone:
             for param in self.model.features.parameters():
                 param.requires_grad = False

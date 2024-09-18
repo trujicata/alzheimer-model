@@ -26,7 +26,6 @@ class ADNIDataset(Dataset):
         return len(self.X)
 
     def __getitem__(self, idx):
-
         image = self.X[idx]
 
         label_id = int(self.y[idx])

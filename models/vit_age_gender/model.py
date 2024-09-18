@@ -178,6 +178,7 @@ class ViT(nn.Module):
 
 
 class ViTClassifier3D(pl.LightningModule):
+
     def __init__(
         self,
         name: Optional[str] = None,
@@ -309,7 +310,7 @@ class ViTClassifier3D(pl.LightningModule):
         )
         self.log_images(x, y, preds, "Test")
 
-    def on_test_end(self):
+    def on_test_epoch_end(self) -> None:
         precision, recall, f1 = self.calculate_metrics(self.test_conf_matrix.compute())
         self.log_conf_matrix(mode="test")
         self.log_dict(

@@ -187,3 +187,12 @@ class ADNIDataModule(pl.LightningDataModule):
             shuffle=False,
             pin_memory=True,
         )
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+            pin_memory=True,
+        )
