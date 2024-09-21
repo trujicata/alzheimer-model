@@ -74,14 +74,13 @@ class ADNIDataModule(pl.LightningDataModule):
                 with open(path, "wb") as f:
                     s3.download_fileobj("brainers-preprocessed", key, f)
 
-        with h5py.File(os.path.join(self.data_path, files[0]), "r") as train_h5_:
-            X_train, y_train = train_h5_["X_nii"], train_h5_["y"]
+        train_h5_ = h5py.File(os.path.join(self.data_path, files[0]), "r")
+        val_1_h5_ = h5py.File(os.path.join(self.data_path, files[1]), "r")
+        val_2_h5_ = h5py.File(os.path.join(self.data_path, files[2]), "r")
+        X_train, y_train = train_h5_["X_nii"], train_h5_["y"]
 
-        with h5py.File(os.path.join(self.data_path, files[1]), "r") as val_1_h5_:
-            X_val, y_val = val_1_h5_["X_nii"], val_1_h5_["y"]
-
-        with h5py.File(os.path.join(self.data_path, files[2]), "r") as val_2_h5_:
-            X_test, y_test = val_2_h5_["X_nii"], val_2_h5_["y"]
+        X_val, y_val = val_1_h5_["X_nii"], val_1_h5_["y"]
+        X_test, y_test = val_2_h5_["X_nii"], val_2_h5_["y"]
 
         if self.include_cudim:
             indices = np.sort(np.random.choice(X_test.shape[0], 50, replace=False))

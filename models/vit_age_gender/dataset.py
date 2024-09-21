@@ -106,29 +106,30 @@ class ADNIDataModule(pl.LightningDataModule):
 
         val_1_h5_ = h5py.File(os.path.join(self.data_path, files[1]), "r")
         val_2_h5_ = h5py.File(os.path.join(self.data_path, files[2]), "r")
+        train_h5_ = h5py.File(os.path.join(self.data_path, files[0]), "r")
 
-        with h5py.File(os.path.join(self.data_path, files[0]), "r") as train_h5_:
-            X_train, age_train, sex_train, y_train = (
-                train_h5_["X_nii"],
-                train_h5_["X_Age"],
-                train_h5_["X_Sex"],
-                train_h5_["y"],
-            )
-        with h5py.File(os.path.join(self.data_path, files[1]), "r") as val_1_h5_:
-            X_val, age_val, sex_val, y_val = (
-                val_1_h5_["X_nii"],
-                val_1_h5_["X_Age"],
-                val_1_h5_["X_Sex"],
-                val_1_h5_["y"],
-            )
+        X_val, y_val = val_1_h5_["X_nii"], val_1_h5_["y"]
+        X_test, y_test = val_2_h5_["X_nii"], val_2_h5_["y"]
 
-        with h5py.File(os.path.join(self.data_path, files[2]), "r") as val_2_h5_:
-            X_test, age_test, sex_test, y_test = (
-                val_2_h5_["X_nii"],
-                val_2_h5_["X_Age"],
-                val_2_h5_["X_Sex"],
-                val_2_h5_["y"],
-            )
+        X_train, age_train, sex_train, y_train = (
+            train_h5_["X_nii"],
+            train_h5_["X_Age"],
+            train_h5_["X_Sex"],
+            train_h5_["y"],
+        )
+        X_val, age_val, sex_val, y_val = (
+            val_1_h5_["X_nii"],
+            val_1_h5_["X_Age"],
+            val_1_h5_["X_Sex"],
+            val_1_h5_["y"],
+        )
+
+        X_test, age_test, sex_test, y_test = (
+            val_2_h5_["X_nii"],
+            val_2_h5_["X_Age"],
+            val_2_h5_["X_Sex"],
+            val_2_h5_["y"],
+        )
 
         if self.include_cudim:
             indices = np.sort(np.random.choice(X_test.shape[0], 50, replace=False))
