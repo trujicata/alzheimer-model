@@ -96,11 +96,8 @@ def train(args):
 
     # Train the model
     try:
-        # trainer.fit(
-        #     model,
-        #     datamodule=datamodule,
-        # )
-        trainer.test(model, datamodule=datamodule)
+        trainer.fit(model, datamodule=datamodule)
+        trainer.test(model, datamodule=datamodule, ckpt_path="best")
     except KeyboardInterrupt:
         print("Keyboard interrupt, saving config file")
         with open(config_copy_path, "w") as config_copy_file:

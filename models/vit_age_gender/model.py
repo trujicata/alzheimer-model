@@ -350,10 +350,10 @@ class ViTClassifier3D(pl.LightningModule):
             self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
             self.val_conf_matrix.reset()
         elif mode == "test":
-            fig = self.val_conf_matrix.plot()
+            fig = self.test_conf_matrix.plot()
             name = "Test_Confusion_Matrix"
             self.logger.experiment.add_figure(name, fig, global_step=self.current_epoch)
-            self.val_conf_matrix.reset()
+            self.test_conf_matrix.reset()
         else:
             fig = self.train_conf_matrix.plot()
             name = "Train_Confusion_Matrix"
