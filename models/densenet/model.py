@@ -117,7 +117,7 @@ class Classifier3D(pl.LightningModule):
         preds = torch.zeros_like(logits)
         preds[torch.arange(logits.shape[0]), class_predictions] = 1
 
-        self.val_conf_matrix.update(preds, y)
+        self.test_conf_matrix.update(preds, y)
 
         self.log_dict(
             {

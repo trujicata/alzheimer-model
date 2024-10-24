@@ -96,6 +96,7 @@ class ViT(nn.Module):
         frames,
         frame_patch_size,
         num_classes,
+        age_classes=6,
         dim,
         depth,
         heads,
@@ -117,7 +118,7 @@ class ViT(nn.Module):
             frames % frame_patch_size == 0
         ), "Frames must be divisible by frame patch size"
 
-        num_patches = (
+        self.num_patches = (
             (image_height // patch_height)
             * (image_width // patch_width)
             * (frames // frame_patch_size)
@@ -140,10 +141,10 @@ class ViT(nn.Module):
             nn.Linear(patch_dim, dim),
             nn.LayerNorm(dim),
         )
-        self.age_embedding = nn.Embedding(6, dim)
+        self.age_embedding = nn.Embedding(age_classes, dim)
         self.sex_embedding = nn.Embedding(2, dim)
 
-        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 3, dim))
+        self.pos_embedding = nn.Parameter(torch.randn(1, self.num_patches + 3, dim))
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
@@ -164,7 +165,7 @@ class ViT(nn.Module):
 
         cls_tokens = repeat(self.cls_token, "1 1 d -> b 1 d", b=b)
         x = torch.cat((cls_tokens, age_embedding, sex_embedding, visual_output), dim=1)
-        x += self.pos_embedding[:, : (n + 3)]  # Check
+        x += self.pos_embedding[:, : (n + 3)]
         x = self.dropout(x)
 
         x = self.transformer1(x)
@@ -189,6 +190,7 @@ class ViTClassifier3D(pl.LightningModule):
         depth: int = 6,
         heads: int = 16,
         mlp_dim: int = 2048,
+        age_classes: int = 6,
         pool: str = "cls",
         dim_head: int = 64,
         dropout: float = 0.1,
@@ -224,6 +226,7 @@ class ViTClassifier3D(pl.LightningModule):
             dim=dim,
             depth=depth,
             heads=heads,
+            age_classes=age_classes,
             mlp_dim=mlp_dim,
             dropout=dropout,
             emb_dropout=emb_dropout,
@@ -311,35 +314,47 @@ class ViTClassifier3D(pl.LightningModule):
         self.log_images(x, y, preds, "Test")
 
     def on_test_epoch_end(self) -> None:
-        precision, recall, f1 = self.calculate_metrics(self.test_conf_matrix.compute())
+        precision, recall, f1, ad_c_accuracy, mci_c_accuracy = self.calculate_metrics(
+            self.test_conf_matrix.compute()
+        )
         self.log_conf_matrix(mode="test")
         self.log_dict(
             {
                 "test_precision": precision,
                 "test_recall": recall,
                 "test_f1": f1,
+                "test_ad_c_accuracy": ad_c_accuracy,
+                "test_mci_c_accuracy": mci_c_accuracy,
             }
         )
 
     def on_validation_epoch_end(self) -> None:
-        precision, recall, f1 = self.calculate_metrics(self.val_conf_matrix.compute())
+        precision, recall, f1, ad_c_accuracy, mci_c_accuracy = self.calculate_metrics(
+            self.val_conf_matrix.compute()
+        )
         self.log_conf_matrix(mode="val")
         self.log_dict(
             {
                 "val_precision": precision,
                 "val_recall": recall,
                 "val_f1": f1,
+                "val_ad_c_accuracy": ad_c_accuracy,
+                "val_mci_c_accuracy": mci_c_accuracy,
             }
         )
 
     def on_train_epoch_end(self) -> None:
-        precision, recall, f1 = self.calculate_metrics(self.train_conf_matrix.compute())
+        precision, recall, f1, ad_c_accuracy, mci_c_accuracy = self.calculate_metrics(
+            self.train_conf_matrix.compute()
+        )
         self.log_conf_matrix(mode="train")
         self.log_dict(
             {
                 "train_precision": precision,
                 "train_recall": recall,
                 "train_f1": f1,
+                "train_ad_c_accuracy": ad_c_accuracy,
+                "train_mci_c_accuracy": mci_c_accuracy,
             }
         )
 
@@ -388,12 +403,19 @@ class ViTClassifier3D(pl.LightningModule):
         recall = np.diag(confusion_matrix) / np.sum(confusion_matrix, axis=1)
         f1 = 2 * (precision * recall) / (precision + recall)
 
+        ad_c_accuracy = confusion_matrix[0][0] / (
+            confusion_matrix[0][0] + confusion_matrix[0][2]
+        )
+        mci_c_accuracy = confusion_matrix[1][1] / (
+            confusion_matrix[1][1] + confusion_matrix[1][2]
+        )
+
         for metric in [precision, recall, f1]:
             metric[np.isnan(metric)] = 0
             # Transform to torch
             metric = torch.Tensor(metric)
 
-        return precision.mean(), recall.mean(), f1.mean()
+        return precision.mean(), recall.mean(), f1.mean(), ad_c_accuracy, mci_c_accuracy
 
 
 class ConfusionMatrixPloter:

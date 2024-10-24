@@ -40,6 +40,7 @@ def train(args):
         heads=args.heads,
         mlp_dim=args.mlp_dim,
         pool=args.pool,
+        age_classes=args.age_classes,
         dropout=float(args.dropout),
         emb_dropout=float(args.emb_dropout),
         class_weights=args.class_weights,
@@ -60,13 +61,14 @@ def train(args):
         num_workers=args.num_workers,
         include_cudim=args.include_cudim,
         processing=args.processing,
+        age_classes=args.age_classes,
     )
 
     # Callbacks
     print("Defining callbacks")
     checkpoint_callback = ModelCheckpoint(
         dirpath=f"lightning_logs/checkpoints/{model_name}",
-        filename=f"{model_name}-{args.processing}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_recall:.2f}}",
+        filename=f"{model_name}-{args.processing}-{{epoch:02d}}-{{val_loss:.2f}}-{{val_recall:.2f}}-{{val_ad_c_accuracy:.2f}}-{{val_mci_c_accuracy:.2f}}",
         monitor="val_recall",
         mode="max",
         save_top_k=3,

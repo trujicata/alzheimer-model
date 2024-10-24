@@ -9,19 +9,19 @@ import torchvision.transforms as T
 from torch.utils.data import DataLoader, Dataset
 
 
-def age_range(age):
-    if age <= 50:
-        return 0
-    elif age < 50 and age <= 60:
-        return 1
-    elif age < 60 and age <= 70:
-        return 2
-    elif age < 70 and age <= 80:
-        return 3
-    elif age < 80 and age <= 90:
-        return 4
-    else:
-        return 5
+def age_range(age, num_classes):
+    if age < 50:
+        return 0  # Handle ages below 50 if needed
+    elif age >= 100:
+        return num_classes - 1  # Handle ages 100 and above
+
+    # Calculate the size of each class interval
+    class_size = (100 - 50) / num_classes
+
+    # Determine which class the age belongs to
+    class_index = int((age - 50) / class_size)
+
+    return class_index
 
 
 class ADNIDataset(Dataset):
@@ -33,6 +33,7 @@ class ADNIDataset(Dataset):
         sex,
         transform=None,
         num_classes=3,
+        age_classes=6,
     ):
         self.X = X
         self.age = age
@@ -41,13 +42,14 @@ class ADNIDataset(Dataset):
 
         self.transform = transform
         self.num_classes = num_classes
+        self.age_classes = age_classes
 
     def __len__(self):
         return len(self.X)
 
     def __getitem__(self, idx):
         image = self.X[idx]
-        age = age_range(self.age[idx])
+        age = age_range(self.age[idx], self.age_classes)
         age = torch.tensor(age, dtype=torch.int64)
         sex = self.sex[idx]
         sex = torch.tensor(sex, dtype=torch.int64)
@@ -73,6 +75,7 @@ class ADNIDataModule(pl.LightningDataModule):
         self,
         data_path: str,
         processing: str,
+        age_classes: int = 6,
         batch_size: int = 32,
         num_workers: int = 4,
         include_cudim: bool = False,
@@ -80,6 +83,7 @@ class ADNIDataModule(pl.LightningDataModule):
         super().__init__()
         self.data_path = os.path.join(data_path, processing)
         self.processing = processing
+        self.age_classes = age_classes
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.include_cudim = include_cudim
@@ -158,9 +162,15 @@ class ADNIDataModule(pl.LightningDataModule):
             sex=sex_train,
             y=y_train,
             transform=train_transforms,
+            age_classes=self.age_classes,
         )
         self.val_dataset = ADNIDataset(
-            X=X_val, age=age_val, sex=sex_val, y=y_val, transform=val_transforms
+            X=X_val,
+            age=age_val,
+            sex=sex_val,
+            y=y_val,
+            transform=val_transforms,
+            age_classes=self.age_classes,
         )
         self.test_dataset = ADNIDataset(
             X=X_test,
@@ -168,6 +178,7 @@ class ADNIDataModule(pl.LightningDataModule):
             sex=sex_test,
             y=y_test,
             transform=val_transforms,
+            age_classes=self.age_classes,
         )
 
     def train_dataloader(self):

@@ -50,7 +50,20 @@ def metrics_from_confusion_matrix(confusion_matrix):
             if (precision[i] + recall[i]) > 0
             else 0
         )
-    return np.mean(precision), np.mean(recall), np.mean(f1_score)
+    accuracy_mci_cn = confusion_matrix[1, 1] / (
+        confusion_matrix[1, 1] + confusion_matrix[1, 2]
+    )
+    accuracy_ad_cn = confusion_matrix[0, 0] / (
+        confusion_matrix[0, 0] + confusion_matrix[0, 2]
+    )
+
+    return (
+        np.mean(precision),
+        np.mean(recall),
+        np.mean(f1_score),
+        accuracy_mci_cn,
+        accuracy_ad_cn,
+    )
 
 
 # %%
@@ -62,12 +75,14 @@ confusion_matrix_val = np.array(
         [0, 0, 0],
     ]
 )
-precision_val, recall_val, f1_score_val = metrics_from_confusion_matrix(
-    confusion_matrix_val
+precision_val, recall_val, f1_score_val, acc_mci_cn_val, acc_ad_cn_val = (
+    metrics_from_confusion_matrix(confusion_matrix_val)
 )
 print(
     f"Validation\nPrecision: {precision_val}\nRecall: {recall_val}\nF1 Score: {f1_score_val}\n\n"
 )
+print(f"Accuracy MCI/CN: {acc_mci_cn_val}\nAccuracy AD/CN: {acc_ad_cn_val}\n\n")
+
 
 confusion_matrix_test = np.array(
     [
@@ -76,12 +91,13 @@ confusion_matrix_test = np.array(
         [0, 0, 0],
     ]
 )
-precision_test, recall_test, f1_score_test = metrics_from_confusion_matrix(
-    confusion_matrix_test
+precision_test, recall_test, f1_score_test, acc_mci_cn_test, acc_ad_cn_test = (
+    metrics_from_confusion_matrix(confusion_matrix_test)
 )
 print(
     f"Test\nPrecision: {precision_test}\nRecall: {recall_test}\nF1 Score: {f1_score_test}\n\n"
 )
+print(f"Accuracy MCI/CN: {acc_mci_cn_test}\nAccuracy AD/CN: {acc_ad_cn_test}\n\n")
 # %%
 # If all the predictions were 1 (MCI), what would the precision, recall and f1 score be?
 
@@ -93,12 +109,14 @@ confusion_matrix_val = np.array(
     ]
 )
 
-precision_val, recall_val, f1_score_val = metrics_from_confusion_matrix(
-    confusion_matrix_val
+precision_val, recall_val, f1_score_val, acc_mci_cn_val, acc_ad_cn_val = (
+    metrics_from_confusion_matrix(confusion_matrix_val)
 )
 print(
     f"Validation\nPrecision: {precision_val}\nRecall: {recall_val}\nF1 Score: {f1_score_val}\n\n"
 )
+print(f"Accuracy MCI/CN: {acc_mci_cn_val}\nAccuracy AD/CN: {acc_ad_cn_val}\n\n")
+
 
 confusion_matrix_test = np.array(
     [
@@ -108,12 +126,14 @@ confusion_matrix_test = np.array(
     ]
 )
 
-precision_test, recall_test, f1_score_test = metrics_from_confusion_matrix(
-    confusion_matrix_test
+precision_test, recall_test, f1_score_test, acc_mci_cn_test, acc_ad_cn_test = (
+    metrics_from_confusion_matrix(confusion_matrix_test)
 )
 print(
     f"Test\nPrecision: {precision_test}\nRecall: {recall_test}\nF1 Score: {f1_score_test}\n\n"
 )
+print(f"Accuracy MCI/CN: {acc_mci_cn_test}\nAccuracy AD/CN: {acc_ad_cn_test}\n\n")
+
 
 # %%
 # If all the predictions were 2 (CN), what would the precision, recall and f1 score be?
@@ -126,12 +146,14 @@ confusion_matrix_val = np.array(
     ]
 )
 
-precision_val, recall_val, f1_score_val = metrics_from_confusion_matrix(
-    confusion_matrix_val
+precision_val, recall_val, f1_score_val, acc_mci_cn_val, acc_ad_cn_val = (
+    metrics_from_confusion_matrix(confusion_matrix_val)
 )
 print(
     f"Validation\nPrecision: {precision_val}\nRecall: {recall_val}\nF1 Score: {f1_score_val}\n\n"
 )
+print(f"Accuracy MCI/CN: {acc_mci_cn_val}\nAccuracy AD/CN: {acc_ad_cn_val}\n\n")
+
 
 confusion_matrix_test = np.array(
     [
@@ -141,13 +163,14 @@ confusion_matrix_test = np.array(
     ]
 )
 
-precision_test, recall_test, f1_score_test = metrics_from_confusion_matrix(
-    confusion_matrix_test
+precision_test, recall_test, f1_score_test, acc_mci_cn_test, acc_ad_cn_test = (
+    metrics_from_confusion_matrix(confusion_matrix_test)
 )
-
 print(
     f"Test\nPrecision: {precision_test}\nRecall: {recall_test}\nF1 Score: {f1_score_test}\n\n"
 )
+print(f"Accuracy MCI/CN: {acc_mci_cn_test}\nAccuracy AD/CN: {acc_ad_cn_test}\n\n")
+
 
 # %%
 # Si las predicciones fueran aleatorias, ¿cuáles serían las métricas?
@@ -175,13 +198,14 @@ confusion_matrix_val = np.array(
     ]
 )
 
-precision_val, recall_val, f1_score_val = metrics_from_confusion_matrix(
-    confusion_matrix_val
+precision_val, recall_val, f1_score_val, acc_mci_cn_val, acc_ad_cn_val = (
+    metrics_from_confusion_matrix(confusion_matrix_val)
 )
-
 print(
-    f"Validation (Random Predictions)\nPrecision: {precision_val}\nRecall: {recall_val}\nF1 Score: {f1_score_val}\n\n"
+    f"Validation\nPrecision: {precision_val}\nRecall: {recall_val}\nF1 Score: {f1_score_val}\n\n"
 )
+print(f"Accuracy MCI/CN: {acc_mci_cn_val}\nAccuracy AD/CN: {acc_ad_cn_val}\n\n")
+
 
 confusion_matrix_test = np.array(
     [
@@ -203,11 +227,12 @@ confusion_matrix_test = np.array(
     ]
 )
 
-precision_test, recall_test, f1_score_test = metrics_from_confusion_matrix(
-    confusion_matrix_test
+precision_test, recall_test, f1_score_test, acc_mci_cn_test, acc_ad_cn_test = (
+    metrics_from_confusion_matrix(confusion_matrix_test)
 )
-
 print(
-    f"Test (Random Predictions)\nPrecision: {precision_test}\nRecall: {recall_test}\nF1 Score: {f1_score_test}\n\n"
+    f"Test\nPrecision: {precision_test}\nRecall: {recall_test}\nF1 Score: {f1_score_test}\n\n"
 )
+print(f"Accuracy MCI/CN: {acc_mci_cn_test}\nAccuracy AD/CN: {acc_ad_cn_test}\n\n")
+
 # %%
